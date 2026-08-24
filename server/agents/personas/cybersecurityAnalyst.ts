@@ -6,8 +6,8 @@ export const cybersecurityAnalystPersona = {
   role: "Senior Cybersecurity Analyst / Security Engineer",
   systemPromptKey: "cybersecurity-analyst-v1",
   modelConfig: {
-    provider: "openrouter",
-    model: "openrouter-configured-model",
+    provider: "manus",
+    model: "manus-managed-model",
     temperature: 0.1,
     maxTokens: 1200,
     contextLimit: 16_000,

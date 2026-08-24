@@ -6,8 +6,8 @@ export const dataAnalystPersona = {
   role: "Senior Data Analyst / Business Intelligence Analyst",
   systemPromptKey: "data-analyst-v1",
   modelConfig: {
-    provider: "openrouter",
-    model: "openrouter-configured-model",
+    provider: "manus",
+    model: "manus-managed-model",
     temperature: 0.1,
     maxTokens: 1400,
     contextLimit: 16_000,
