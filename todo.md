@@ -154,3 +154,7 @@
 - [x] Surface a clear warning when an employee fallback reply is persisted because the AI provider is unavailable or timed out.
 - [x] Add router-level regression coverage for the persisted employee response returned by task creation.
 - [x] Verify the employee reply flow end-to-end and save the final response-repair checkpoint.
+- [x] Route chat tasks to Alex, Maya, Noor, or Priya based on the requested work and record the assigned specialist.
+- [x] Give every responding employee an explicit role, distinctive persona, and bounded skill set in server-generated replies.
+- [x] Surface the selected specialist and relevant skills in the chat/task experience.
+- [x] Add specialist-routing and persona-response regressions, then verify and save a delivery checkpoint.
