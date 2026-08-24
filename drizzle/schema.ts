@@ -60,7 +60,7 @@ export const employees = mysqlTable("employees", {
 export const companyContext = mysqlTable("companyContext", {
   id: int("id").autoincrement().primaryKey(),
   companyId: int("companyId").notNull().references(() => companies.id),
-  category: mysqlEnum("category", ["identity", "business_context", "products", "projects", "technology_stack", "infrastructure", "databases", "apis", "repositories", "policies", "goals", "constraints", "team", "kpis", "reporting", "dashboards", "data_sources"]).notNull(),
+  category: mysqlEnum("category", ["identity", "business_context", "products", "projects", "technology_stack", "infrastructure", "databases", "apis", "repositories", "policies", "goals", "constraints", "team", "kpis", "reporting", "dashboards", "data_sources", "testing_standards", "release_workflow", "quality_risks", "critical_user_flows"]).notNull(),
   title: varchar("title", { length: 180 }).notNull(),
   value: text("value").notNull(),
   source: varchar("source", { length: 120 }).default("onboarding").notNull(),
@@ -144,7 +144,7 @@ export const employeeMemories = mysqlTable("employeeMemories", {
   companyId: int("companyId").notNull().references(() => companies.id),
   employeeId: int("employeeId").notNull().references(() => employees.id),
   projectId: int("projectId").references(() => projects.id),
-  type: mysqlEnum("type", ["technical_fact", "decision", "preference", "task_context", "project_context", "known_issue", "security_architecture", "threat_model", "compliance", "accepted_risk", "security_finding", "security_incident", "dataset_metadata", "schema_definition", "kpi_definition", "reporting_convention", "analysis_finding", "dashboard_reference", "recurring_report"]).notNull(),
+  type: mysqlEnum("type", ["technical_fact", "decision", "preference", "task_context", "project_context", "known_issue", "security_architecture", "threat_model", "compliance", "accepted_risk", "security_finding", "security_incident", "dataset_metadata", "schema_definition", "kpi_definition", "reporting_convention", "analysis_finding", "dashboard_reference", "recurring_report", "test_suite", "regression_history", "recurring_bug", "testing_convention", "flaky_test", "important_user_flow", "quality_risk"]).notNull(),
   title: varchar("title", { length: 180 }).notNull(),
   value: text("value").notNull(),
   importance: int("importance").default(50).notNull(),
@@ -381,6 +381,146 @@ export const dataEvents = mysqlTable("dataEvents", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const qaTestPlans = mysqlTable("qaTestPlans", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  employeeId: int("employeeId").notNull().references(() => employees.id),
+  taskId: int("taskId").references(() => tasks.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  featureDescription: text("featureDescription").notNull(),
+  status: mysqlEnum("status", ["planned", "designing", "ready", "running", "blocked", "completed"]).default("planned").notNull(),
+  riskLevel: mysqlEnum("riskLevel", ["low", "medium", "high", "critical"]).default("medium").notNull(),
+  summary: text("summary"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const qaTestCases = mysqlTable("qaTestCases", {
+  id: int("id").autoincrement().primaryKey(),
+  planId: int("planId").notNull().references(() => qaTestPlans.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  testType: mysqlEnum("testType", ["unit", "integration", "api", "ui", "end_to_end", "regression", "smoke", "performance", "security_regression"]).notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "critical"]).default("medium").notNull(),
+  preconditions: text("preconditions"),
+  steps: text("steps").notNull(),
+  expectedResult: text("expectedResult").notNull(),
+  automationStatus: mysqlEnum("automationStatus", ["manual", "candidate", "automated", "flaky"]).default("candidate").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const qaToolPolicies = mysqlTable("qaToolPolicies", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull().references(() => employees.id),
+  toolName: varchar("toolName", { length: 120 }).notNull(),
+  toolType: varchar("toolType", { length: 80 }).notNull(),
+  canRead: boolean("canRead").default(false).notNull(),
+  canExecute: boolean("canExecute").default(false).notNull(),
+  canWrite: boolean("canWrite").default(false).notNull(),
+  requiresApproval: boolean("requiresApproval").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const ciAdapters = mysqlTable("ciAdapters", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  name: varchar("name", { length: 160 }).notNull(),
+  adapterKey: varchar("adapterKey", { length: 120 }).notNull(),
+  status: mysqlEnum("status", ["draft", "connected", "unavailable", "disabled"]).default("draft").notNull(),
+  capabilities: json("capabilities").$type<string[]>().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const qaTestRuns = mysqlTable("qaTestRuns", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  employeeId: int("employeeId").notNull().references(() => employees.id),
+  planId: int("planId").references(() => qaTestPlans.id),
+  taskId: int("taskId").references(() => tasks.id),
+  toolName: varchar("toolName", { length: 120 }).notNull(),
+  suiteName: varchar("suiteName", { length: 255 }).notNull(),
+  environment: varchar("environment", { length: 100 }).notNull(),
+  status: mysqlEnum("status", ["queued", "running", "passed", "failed", "blocked", "cancelled"]).default("queued").notNull(),
+  total: int("total").default(0).notNull(),
+  passed: int("passed").default(0).notNull(),
+  failed: int("failed").default(0).notNull(),
+  skipped: int("skipped").default(0).notNull(),
+  durationSeconds: int("durationSeconds").default(0).notNull(),
+  riskLevel: mysqlEnum("riskLevel", ["low", "medium", "high", "critical"]).default("medium").notNull(),
+  summary: text("summary"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export const qaTestResults = mysqlTable("qaTestResults", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: int("runId").notNull().references(() => qaTestRuns.id),
+  testCaseId: int("testCaseId").references(() => qaTestCases.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  status: mysqlEnum("status", ["passed", "failed", "skipped", "flaky", "environment_error"]).notNull(),
+  failureClass: mysqlEnum("failureClass", ["application_bug", "broken_test", "environment_failure", "dependency_problem", "flaky_test", "none"]).default("none").notNull(),
+  details: text("details"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const qaDefects = mysqlTable("qaDefects", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  runId: int("runId").references(() => qaTestRuns.id),
+  taskId: int("taskId").references(() => tasks.id),
+  reportedByEmployeeId: int("reportedByEmployeeId").notNull().references(() => employees.id),
+  suggestedOwnerEmployeeId: int("suggestedOwnerEmployeeId").references(() => employees.id),
+  defectKey: varchar("defectKey", { length: 80 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  severity: mysqlEnum("severity", ["blocker", "critical", "high", "medium", "low"]).notNull(),
+  status: mysqlEnum("status", ["open", "triaged", "in_progress", "ready_for_verification", "verified", "closed", "wont_fix"]).default("open").notNull(),
+  environment: varchar("environment", { length: 100 }).notNull(),
+  stepsToReproduce: text("stepsToReproduce").notNull(),
+  expectedResult: text("expectedResult").notNull(),
+  actualResult: text("actualResult").notNull(),
+  evidence: text("evidence").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const qaVerifications = mysqlTable("qaVerifications", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  defectId: int("defectId").references(() => qaDefects.id),
+  runId: int("runId").references(() => qaTestRuns.id),
+  taskId: int("taskId").references(() => tasks.id),
+  employeeId: int("employeeId").notNull().references(() => employees.id),
+  status: mysqlEnum("status", ["pending", "verified", "failed", "blocked"]).default("pending").notNull(),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const qaArtifacts = mysqlTable("qaArtifacts", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: int("runId").references(() => qaTestRuns.id),
+  defectId: int("defectId").references(() => qaDefects.id),
+  artifactType: mysqlEnum("artifactType", ["log", "screenshot", "trace", "report", "video", "response"]).notNull(),
+  title: varchar("title", { length: 180 }).notNull(),
+  storageKey: varchar("storageKey", { length: 512 }),
+  summary: text("summary"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const qaEvents = mysqlTable("qaEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  employeeId: int("employeeId").references(() => employees.id),
+  testPlanId: int("testPlanId").references(() => qaTestPlans.id),
+  runId: int("runId").references(() => qaTestRuns.id),
+  defectId: int("defectId").references(() => qaDefects.id),
+  taskId: int("taskId").references(() => tasks.id),
+  action: mysqlEnum("action", ["plan_created", "run_started", "run_completed", "defect_created", "developer_notified", "security_regression_created", "data_regression_created", "verification_requested", "verification_completed", "permission_denied"]).notNull(),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Company = typeof companies.$inferSelect;
@@ -392,3 +532,6 @@ export type SecurityFinding = typeof securityFindings.$inferSelect;
 export type DataSource = typeof dataSources.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;
 export type AnalysisResult = typeof analysisResults.$inferSelect;
+export type QaTestPlan = typeof qaTestPlans.$inferSelect;
+export type QaTestRun = typeof qaTestRuns.$inferSelect;
+export type QaDefect = typeof qaDefects.$inferSelect;

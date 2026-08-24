@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { securityRouter } from "./routers/security";
 import { dataRouter } from "./routers/data";
+import { qaRouter } from "./routers/qa";
 import { workspaceRouter } from "./routers/workspace";
 
 export const appRouter = router({
@@ -19,6 +20,7 @@ export const appRouter = router({
   workspace: workspaceRouter,
   security: securityRouter,
   data: dataRouter,
+  qa: qaRouter,
 });
 
 export type AppRouter = typeof appRouter;

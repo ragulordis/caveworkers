@@ -75,3 +75,30 @@
 - [x] Replace the DOM-injected Noor roster entry with a directly rendered React JSX sidebar entry.
 - [x] Re-run checks and visual verification after the production-quality Home sidebar update.
 - [x] Save the final post-Data-Analyst checkpoint after the verified JSX sidebar update.
+- [x] Add a Software QA and Automation Engineer persona, model configuration, test-tool permissions, and safety restrictions.
+- [x] Extend shared and employee memory for test suites, regression history, recurring bugs, flaky tests, user flows, test conventions, and quality risks.
+- [x] Add typed models for test plans, test cases, test runs, test results, defects, verification records, test artifacts, tool policies, and QA events.
+- [x] Implement a provider-neutral testing-tool registry and CI adapter foundation for test frameworks, REST clients, browser automation, test environments, and artifact collection.
+- [x] Add structured QA workflows covering plan generation, unit/integration/API/UI/end-to-end/regression/smoke/performance/security-regression testing, failure classification, and verification.
+- [x] Add persistent defect creation, severity classification, suggested ownership, evidence capture, regression verification, and developer notifications.
+- [x] Add QA collaboration with Alex, Maya, and Noor using shared events, messages, dependent tasks, handoffs, and verification states.
+- [x] Add a premium quality dashboard showing current run, suite, pass/fail/skip counts, open defects, risk, and latest verification from backend data.
+- [x] Add the QA Engineer to the existing workforce roster and employee panels with current suite, quality status, open bugs, and latest verification.
+- [x] Add tests for QA workflow validation, permission boundaries, defects, test run results, and cross-employee verification flows.
+- [x] Verify desktop and mobile QA views, then save a delivery checkpoint.
+- [x] Persist and surface QA-specific shared company memory for suites, release standards, recurring quality risks, and critical user flows.
+- [x] Expand concrete QA plan generation to include UI, smoke, performance, and all supported test-type scenarios.
+- [x] Add real QA security- and data-regression collaboration flows with Maya and Noor using messages, events, dependent tasks, and verification states.
+- [x] Add Priya to the main Home workforce roster and switchable employee panel.
+- [x] Add explicit QA permission-boundary and Maya/Noor collaboration coverage.
+- [x] Save a final post-QA checkpoint after the verified implementation.
+- [x] Surface QA shared company memory in the Quality workspace UI and dashboard read model.
+- [x] Add a concrete unit-test scenario to QA plan generation.
+- [x] Add and test a Noor data-regression collaboration flow with persisted verification state.
+- [x] Render Priya in the actual Home left-sidebar team roster alongside Alex, Maya, and Noor.
+- [x] Add QA procedure permission-boundary and Maya/Noor collaboration tests.
+- [x] Save a final checkpoint after the complete QA verification pass.
+- [x] Render shared QA company memory in the Quality workspace UI.
+- [x] Add Priya directly to the Home left-sidebar Team roster JSX.
+- [x] Add explicit protected QA procedure authorization tests.
+- [x] Save a final checkpoint after the verified QA completion updates.

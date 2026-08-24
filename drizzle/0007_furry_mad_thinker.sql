@@ -1,0 +1,1 @@
+ALTER TABLE `companyContext` MODIFY COLUMN `category` enum('identity','business_context','products','projects','technology_stack','infrastructure','databases','apis','repositories','policies','goals','constraints','team','kpis','reporting','dashboards','data_sources','testing_standards','release_workflow','quality_risks','critical_user_flows') NOT NULL;

@@ -1,7 +1,8 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { activityEvents, companies, companyContext, companyMembers, conversations, dataSourcePermissions, employees, InsertUser, messages, securityToolPolicies, tasks, users } from "../drizzle/schema";
+import { activityEvents, companies, companyContext, companyMembers, conversations, dataSourcePermissions, employees, InsertUser, messages, qaToolPolicies, securityToolPolicies, tasks, users } from "../drizzle/schema";
 import { dataAnalystPersona } from "./agents/personas/dataAnalyst";
+import { qaEngineerPersona } from "./agents/personas/qaEngineer";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -131,10 +132,18 @@ export async function createCompanyWorkspace(userId: number, input: CreateCompan
     });
     const dataEmployeeId = Number((createdDataEmployee as unknown as { insertId: number }).insertId);
     await tx.insert(dataSourcePermissions).values({ employeeId: dataEmployeeId, canRead: true, canQuery: true, canAnalyze: true, canWrite: false, requiresApproval: true });
+    const createdQaEmployee = await tx.insert(employees).values({ companyId, key: "qa-automation-engineer", name: qaEngineerPersona.name, role: qaEngineerPersona.role, status: "monitoring", model: qaEngineerPersona.modelConfig.model, systemPromptKey: qaEngineerPersona.systemPromptKey, temperature: 10, maxTokens: qaEngineerPersona.modelConfig.maxTokens, toolPermissions: [...qaEngineerPersona.modelConfig.toolPermissions] });
+    const qaEmployeeId = Number((createdQaEmployee as unknown as { insertId: number }).insertId);
+    await tx.insert(qaToolPolicies).values([
+      { employeeId: qaEmployeeId, toolName: "test_runner", toolType: "framework", canRead: true, canExecute: true, canWrite: false, requiresApproval: false },
+      { employeeId: qaEmployeeId, toolName: "browser_automation", toolType: "browser", canRead: true, canExecute: true, canWrite: false, requiresApproval: false },
+      { employeeId: qaEmployeeId, toolName: "api_client", toolType: "rest", canRead: true, canExecute: true, canWrite: false, requiresApproval: false },
+      { employeeId: qaEmployeeId, toolName: "production_load_test", toolType: "performance", canRead: false, canExecute: false, canWrite: false, requiresApproval: true },
+    ]);
     const createdConversation = await tx.insert(conversations).values({ companyId, title: "Engineering", visibility: "company", createdByUserId: userId });
     const conversationId = Number((createdConversation as unknown as { insertId: number }).insertId);
 
-    return { companyId, employeeId, securityEmployeeId, dataEmployeeId, conversationId };
+    return { companyId, employeeId, securityEmployeeId, dataEmployeeId, qaEmployeeId, conversationId };
   });
 }
 
