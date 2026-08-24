@@ -124,3 +124,7 @@
 - [x] Re-verify the unaffiliated first-load experience and save the final automatic-provisioning checkpoint.
 - [x] Prove the actual task-mutation helper invokes automatic provisioning internally for an unaffiliated user.
 - [x] Re-run first-load verification after the final auto-provision helper change and save the checkpoint.
+- [x] Fix automatic company provisioning so the new company identifier is resolved safely before owner membership insertion.
+- [x] Add regression coverage for database insert result shapes that do not expose a direct numeric insert ID.
+- [x] Verify the repaired automatic first-workspace flow and save a fix checkpoint.
+- [x] Visually verify the company-ID provisioning repair and save the post-fix checkpoint.

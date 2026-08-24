@@ -62,6 +62,13 @@ export type CreateCompanyWorkspaceInput = {
   technologyStack: string[];
 };
 
+export function getCreatedRecordId(result: unknown) {
+  const candidate = Array.isArray(result) ? result[0] : result;
+  const insertId = candidate && typeof candidate === "object" && "insertId" in candidate ? (candidate as { insertId?: unknown }).insertId : undefined;
+  const numericId = typeof insertId === "bigint" ? Number(insertId) : Number(insertId);
+  return Number.isFinite(numericId) && numericId > 0 ? numericId : undefined;
+}
+
 /** Creates the initial company, membership, context, employee, and shared engineering conversation atomically. */
 export async function createCompanyWorkspace(userId: number, input: CreateCompanyWorkspaceInput) {
   const db = await getDb();
@@ -75,7 +82,16 @@ export async function createCompanyWorkspace(userId: number, input: CreateCompan
       goals: input.goals,
       createdByUserId: userId,
     });
-    const companyId = Number((createdCompany as unknown as { insertId: number }).insertId);
+    const companyId = getCreatedRecordId(createdCompany) ?? (await tx.select().from(companies).where(and(eq(companies.createdByUserId, userId), eq(companies.name, input.name))).orderBy(desc(companies.id)).limit(1))[0]?.id;
+    if (!companyId) throw new Error("Unable to resolve the newly created company workspace");
+
+    const resolveEmployeeId = async (created: unknown, key: string) => {
+      const directId = getCreatedRecordId(created);
+      if (directId) return directId;
+      const employee = (await tx.select().from(employees).where(and(eq(employees.companyId, companyId), eq(employees.key, key))).limit(1))[0];
+      if (!employee) throw new Error(`Unable to resolve the ${key} employee`);
+      return employee.id;
+    };
 
     await tx.insert(companyMembers).values({ companyId, userId, role: "owner" });
     await tx.insert(companyContext).values([
@@ -98,7 +114,7 @@ export async function createCompanyWorkspace(userId: number, input: CreateCompan
       maxTokens: 1200,
       toolPermissions: ["repository.read", "task.plan", "memory.read"],
     });
-    const employeeId = Number((createdEmployee as unknown as { insertId: number }).insertId);
+    const employeeId = await resolveEmployeeId(createdEmployee, "full-stack-developer");
     const createdSecurityEmployee = await tx.insert(employees).values({
       companyId,
       key: "cybersecurity-analyst",
@@ -111,7 +127,7 @@ export async function createCompanyWorkspace(userId: number, input: CreateCompan
       maxTokens: 1200,
       toolPermissions: ["repository.read", "security.scan", "logs.read", "configuration.read"],
     });
-    const securityEmployeeId = Number((createdSecurityEmployee as unknown as { insertId: number }).insertId);
+    const securityEmployeeId = await resolveEmployeeId(createdSecurityEmployee, "cybersecurity-analyst");
     await tx.insert(securityToolPolicies).values([
       { employeeId: securityEmployeeId, toolName: "repository", canRead: true, canExecute: false, canWrite: false, requiresApproval: false },
       { employeeId: securityEmployeeId, toolName: "dependency_scanner", canRead: true, canExecute: true, canWrite: false, requiresApproval: false },
@@ -130,10 +146,10 @@ export async function createCompanyWorkspace(userId: number, input: CreateCompan
       maxTokens: dataAnalystPersona.modelConfig.maxTokens,
       toolPermissions: [...dataAnalystPersona.modelConfig.toolPermissions],
     });
-    const dataEmployeeId = Number((createdDataEmployee as unknown as { insertId: number }).insertId);
+    const dataEmployeeId = await resolveEmployeeId(createdDataEmployee, "data-analyst");
     await tx.insert(dataSourcePermissions).values({ employeeId: dataEmployeeId, canRead: true, canQuery: true, canAnalyze: true, canWrite: false, requiresApproval: true });
     const createdQaEmployee = await tx.insert(employees).values({ companyId, key: "qa-automation-engineer", name: qaEngineerPersona.name, role: qaEngineerPersona.role, status: "monitoring", model: qaEngineerPersona.modelConfig.model, systemPromptKey: qaEngineerPersona.systemPromptKey, temperature: 10, maxTokens: qaEngineerPersona.modelConfig.maxTokens, toolPermissions: [...qaEngineerPersona.modelConfig.toolPermissions] });
-    const qaEmployeeId = Number((createdQaEmployee as unknown as { insertId: number }).insertId);
+    const qaEmployeeId = await resolveEmployeeId(createdQaEmployee, "qa-automation-engineer");
     await tx.insert(qaToolPolicies).values([
       { employeeId: qaEmployeeId, toolName: "test_runner", toolType: "framework", canRead: true, canExecute: true, canWrite: false, requiresApproval: false },
       { employeeId: qaEmployeeId, toolName: "browser_automation", toolType: "browser", canRead: true, canExecute: true, canWrite: false, requiresApproval: false },
@@ -141,7 +157,8 @@ export async function createCompanyWorkspace(userId: number, input: CreateCompan
       { employeeId: qaEmployeeId, toolName: "production_load_test", toolType: "performance", canRead: false, canExecute: false, canWrite: false, requiresApproval: true },
     ]);
     const createdConversation = await tx.insert(conversations).values({ companyId, title: "Engineering", visibility: "company", createdByUserId: userId });
-    const conversationId = Number((createdConversation as unknown as { insertId: number }).insertId);
+    const conversationId = getCreatedRecordId(createdConversation) ?? (await tx.select().from(conversations).where(and(eq(conversations.companyId, companyId), eq(conversations.title, "Engineering"))).limit(1))[0]?.id;
+    if (!conversationId) throw new Error("Unable to resolve the shared engineering conversation");
 
     return { companyId, employeeId, securityEmployeeId, dataEmployeeId, qaEmployeeId, conversationId };
   });

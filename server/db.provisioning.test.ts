@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createTaskWithDependencies, ensureCompanyForUserWithDependencies, provisionWhenMissing } from "./db";
+import { createTaskWithDependencies, ensureCompanyForUserWithDependencies, getCreatedRecordId, provisionWhenMissing } from "./db";
 
 describe("automatic initial workspace provisioning", () => {
+  it("resolves valid created-record identifiers across MySQL insert-result shapes", () => {
+    expect(getCreatedRecordId({ insertId: 12 })).toBe(12);
+    expect(getCreatedRecordId([{ insertId: 13n }])).toBe(13);
+    expect(getCreatedRecordId({})).toBeUndefined();
+  });
+
   it("creates exactly one first workspace when an authenticated user has no membership", async () => {
     let workspace: { id: number; name: string } | undefined;
     let creates = 0;
