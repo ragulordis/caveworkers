@@ -162,4 +162,4 @@
 - [x] Persist employee-to-employee handoffs and dependent tasks when work requires multiple specialist skill sets.
 - [x] Surface assignment and handoff context in the shared conversation and task experience.
 - [x] Add regression coverage for explicit selection and cross-specialist handoffs, then verify and save a delivery checkpoint.
-- [ ] Commit and push the completed Caveworkers project state to the configured GitHub repository.
+- [x] Commit and push the completed Caveworkers project state to the configured GitHub repository.
