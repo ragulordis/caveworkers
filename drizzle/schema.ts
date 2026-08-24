@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   int,
   json,
   mysqlEnum,
@@ -59,7 +60,7 @@ export const employees = mysqlTable("employees", {
 export const companyContext = mysqlTable("companyContext", {
   id: int("id").autoincrement().primaryKey(),
   companyId: int("companyId").notNull().references(() => companies.id),
-  category: mysqlEnum("category", ["identity", "business_context", "products", "projects", "technology_stack", "infrastructure", "databases", "apis", "repositories", "policies", "goals", "constraints", "team"]).notNull(),
+  category: mysqlEnum("category", ["identity", "business_context", "products", "projects", "technology_stack", "infrastructure", "databases", "apis", "repositories", "policies", "goals", "constraints", "team", "kpis", "reporting", "dashboards", "data_sources"]).notNull(),
   title: varchar("title", { length: 180 }).notNull(),
   value: text("value").notNull(),
   source: varchar("source", { length: 120 }).default("onboarding").notNull(),
@@ -130,12 +131,20 @@ export const taskSteps = mysqlTable("taskSteps", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const taskDependencies = mysqlTable("taskDependencies", {
+  id: int("id").autoincrement().primaryKey(),
+  parentTaskId: int("parentTaskId").notNull().references(() => tasks.id),
+  childTaskId: int("childTaskId").notNull().references(() => tasks.id),
+  dependencyType: mysqlEnum("dependencyType", ["blocks", "relates_to", "handoff"]).default("handoff").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const employeeMemories = mysqlTable("employeeMemories", {
   id: int("id").autoincrement().primaryKey(),
   companyId: int("companyId").notNull().references(() => companies.id),
   employeeId: int("employeeId").notNull().references(() => employees.id),
   projectId: int("projectId").references(() => projects.id),
-  type: mysqlEnum("type", ["technical_fact", "decision", "preference", "task_context", "project_context", "known_issue", "security_architecture", "threat_model", "compliance", "accepted_risk", "security_finding", "security_incident"]).notNull(),
+  type: mysqlEnum("type", ["technical_fact", "decision", "preference", "task_context", "project_context", "known_issue", "security_architecture", "threat_model", "compliance", "accepted_risk", "security_finding", "security_incident", "dataset_metadata", "schema_definition", "kpi_definition", "reporting_convention", "analysis_finding", "dashboard_reference", "recurring_report"]).notNull(),
   title: varchar("title", { length: 180 }).notNull(),
   value: text("value").notNull(),
   importance: int("importance").default(50).notNull(),
@@ -267,6 +276,111 @@ export const securityEvents = mysqlTable("securityEvents", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const dataSources = mysqlTable("dataSources", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  name: varchar("name", { length: 180 }).notNull(),
+  sourceType: mysqlEnum("sourceType", ["csv", "excel", "sql_database", "rest_api", "json", "analytics_system", "data_warehouse"]).notNull(),
+  status: mysqlEnum("status", ["connected", "pending", "unavailable", "needs_review"]).default("pending").notNull(),
+  connectorKey: varchar("connectorKey", { length: 120 }).notNull(),
+  schemaSummary: text("schemaSummary"),
+  metadata: json("metadata").$type<Record<string, unknown>>(),
+  lastProfiledAt: timestamp("lastProfiledAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const dataSourcePermissions = mysqlTable("dataSourcePermissions", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull().references(() => employees.id),
+  dataSourceId: int("dataSourceId").references(() => dataSources.id),
+  canRead: boolean("canRead").default(false).notNull(),
+  canQuery: boolean("canQuery").default(false).notNull(),
+  canAnalyze: boolean("canAnalyze").default(false).notNull(),
+  canWrite: boolean("canWrite").default(false).notNull(),
+  requiresApproval: boolean("requiresApproval").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const analyses = mysqlTable("analyses", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  employeeId: int("employeeId").notNull().references(() => employees.id),
+  taskId: int("taskId").references(() => tasks.id),
+  dataSourceId: int("dataSourceId").references(() => dataSources.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  question: text("question").notNull(),
+  analysisType: mysqlEnum("analysisType", ["trend", "anomaly", "kpi", "customer", "revenue", "product", "funnel", "cohort", "experiment", "operational"]).notNull(),
+  status: mysqlEnum("status", ["planned", "retrieving", "validating", "analyzing", "waiting", "blocked", "completed"]).default("planned").notNull(),
+  comparisonPeriod: varchar("comparisonPeriod", { length: 160 }),
+  dataQualityStatus: mysqlEnum("dataQualityStatus", ["unknown", "good", "warning", "insufficient"]).default("unknown").notNull(),
+  dataQualitySummary: text("dataQualitySummary"),
+  confidence: mysqlEnum("confidence", ["high", "medium", "low", "insufficient"]).default("medium").notNull(),
+  summary: text("summary"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export const analysisResults = mysqlTable("analysisResults", {
+  id: int("id").autoincrement().primaryKey(),
+  analysisId: int("analysisId").notNull().references(() => analyses.id),
+  resultType: mysqlEnum("resultType", ["fact", "observation", "inference", "hypothesis", "recommendation"]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  evidence: text("evidence").notNull(),
+  impact: text("impact"),
+  confidence: mysqlEnum("confidence", ["high", "medium", "low", "insufficient"]).default("medium").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const analysisVisualizations = mysqlTable("analysisVisualizations", {
+  id: int("id").autoincrement().primaryKey(),
+  analysisId: int("analysisId").notNull().references(() => analyses.id),
+  visualizationType: mysqlEnum("visualizationType", ["kpi", "table", "line", "bar", "funnel", "trend", "anomaly"]).notNull(),
+  title: varchar("title", { length: 180 }).notNull(),
+  data: json("data").$type<Record<string, unknown>>().notNull(),
+  caption: text("caption"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const dataQualityChecks = mysqlTable("dataQualityChecks", {
+  id: int("id").autoincrement().primaryKey(),
+  analysisId: int("analysisId").notNull().references(() => analyses.id),
+  checkType: mysqlEnum("checkType", ["missing_values", "duplicates", "invalid_values", "schema_change", "timestamp_quality", "outliers", "definition_consistency"]).notNull(),
+  status: mysqlEnum("status", ["passed", "warning", "failed"]).notNull(),
+  affectedPercent: int("affectedPercent").default(0).notNull(),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const analysisSchedules = mysqlTable("analysisSchedules", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  employeeId: int("employeeId").notNull().references(() => employees.id),
+  analysisType: mysqlEnum("analysisType", ["trend", "anomaly", "kpi", "customer", "revenue", "product", "funnel", "cohort", "experiment", "operational"]).notNull(),
+  title: varchar("title", { length: 180 }).notNull(),
+  cronExpression: varchar("cronExpression", { length: 100 }).notNull(),
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+  status: mysqlEnum("status", ["draft", "active", "paused"]).default("draft").notNull(),
+  prompt: text("prompt").notNull(),
+  lastRunAt: timestamp("lastRunAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [index("analysisSchedules_taskUid_idx").on(table.scheduleCronTaskUid)]);
+
+export const dataEvents = mysqlTable("dataEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  employeeId: int("employeeId").references(() => employees.id),
+  analysisId: int("analysisId").references(() => analyses.id),
+  taskId: int("taskId").references(() => tasks.id),
+  action: mysqlEnum("action", ["analysis_started", "data_quality_warning", "finding_created", "insight_shared", "developer_handoff", "security_handoff", "schedule_prepared", "analysis_completed"]).notNull(),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Company = typeof companies.$inferSelect;
@@ -275,3 +389,6 @@ export type Task = typeof tasks.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type SecurityReview = typeof securityReviews.$inferSelect;
 export type SecurityFinding = typeof securityFindings.$inferSelect;
+export type DataSource = typeof dataSources.$inferSelect;
+export type Analysis = typeof analyses.$inferSelect;
+export type AnalysisResult = typeof analysisResults.$inferSelect;

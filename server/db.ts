@@ -1,6 +1,7 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { activityEvents, companies, companyContext, companyMembers, conversations, employees, InsertUser, messages, securityToolPolicies, tasks, users } from "../drizzle/schema";
+import { activityEvents, companies, companyContext, companyMembers, conversations, dataSourcePermissions, employees, InsertUser, messages, securityToolPolicies, tasks, users } from "../drizzle/schema";
+import { dataAnalystPersona } from "./agents/personas/dataAnalyst";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -116,10 +117,24 @@ export async function createCompanyWorkspace(userId: number, input: CreateCompan
       { employeeId: securityEmployeeId, toolName: "http_api_tester", canRead: true, canExecute: true, canWrite: false, requiresApproval: true },
       { employeeId: securityEmployeeId, toolName: "production", canRead: false, canExecute: false, canWrite: false, requiresApproval: true },
     ]);
+    const createdDataEmployee = await tx.insert(employees).values({
+      companyId,
+      key: "data-analyst",
+      name: dataAnalystPersona.name,
+      role: dataAnalystPersona.role,
+      status: "monitoring",
+      model: dataAnalystPersona.modelConfig.model,
+      systemPromptKey: dataAnalystPersona.systemPromptKey,
+      temperature: 10,
+      maxTokens: dataAnalystPersona.modelConfig.maxTokens,
+      toolPermissions: [...dataAnalystPersona.modelConfig.toolPermissions],
+    });
+    const dataEmployeeId = Number((createdDataEmployee as unknown as { insertId: number }).insertId);
+    await tx.insert(dataSourcePermissions).values({ employeeId: dataEmployeeId, canRead: true, canQuery: true, canAnalyze: true, canWrite: false, requiresApproval: true });
     const createdConversation = await tx.insert(conversations).values({ companyId, title: "Engineering", visibility: "company", createdByUserId: userId });
     const conversationId = Number((createdConversation as unknown as { insertId: number }).insertId);
 
-    return { companyId, employeeId, securityEmployeeId, conversationId };
+    return { companyId, employeeId, securityEmployeeId, dataEmployeeId, conversationId };
   });
 }
 

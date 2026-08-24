@@ -1,0 +1,1 @@
+CREATE INDEX `analysisSchedules_taskUid_idx` ON `analysisSchedules` (`scheduleCronTaskUid`);

@@ -1,0 +1,23 @@
+import { z } from "zod";
+import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { createAnalysisForUser, getDataInsightsForUser, getRelevantDataContextForUser, handoffAnalysisForUser, linkAnalysisDependencyForUser, prepareAnalysisScheduleForUser, recordAnalysisResultForUser, recordDataQualityForUser, recordVisualizationForUser, registerDataSourceForUser, storeDataMemoryForUser, storeSharedDataMemoryForUser } from "../data/service";
+
+const analysisType = z.enum(["trend", "anomaly", "kpi", "customer", "revenue", "product", "funnel", "cohort", "experiment", "operational"]);
+const sourceType = z.enum(["csv", "excel", "sql_database", "rest_api", "json", "analytics_system", "data_warehouse"]);
+const resultType = z.enum(["fact", "observation", "inference", "hypothesis", "recommendation"]);
+const confidence = z.enum(["high", "medium", "low", "insufficient"]);
+
+export const dataRouter = router({
+  dashboard: publicProcedure.query(({ ctx }) => getDataInsightsForUser(ctx.user?.id)),
+  context: protectedProcedure.query(({ ctx }) => getRelevantDataContextForUser(ctx.user.id)),
+  registerSource: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), sourceType, connectorKey: z.string().trim().min(2).max(120), schemaSummary: z.string().trim().max(4_000).optional() })).mutation(({ ctx, input }) => registerDataSourceForUser(ctx.user.id, input)),
+  createAnalysis: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), question: z.string().trim().min(3).max(10_000), analysisType, dataSourceId: z.number().int().positive().optional(), comparisonPeriod: z.string().trim().max(160).optional() })).mutation(({ ctx, input }) => createAnalysisForUser(ctx.user.id, input)),
+  recordResult: protectedProcedure.input(z.object({ analysisId: z.number().int().positive(), resultType, title: z.string().trim().min(3).max(255), content: z.string().trim().min(3).max(10_000), evidence: z.string().trim().min(3).max(10_000), impact: z.string().trim().max(4_000).optional(), confidence })).mutation(({ ctx, input }) => recordAnalysisResultForUser(ctx.user.id, input)),
+  recordVisualization: protectedProcedure.input(z.object({ analysisId: z.number().int().positive(), visualizationType: z.enum(["kpi", "table", "line", "bar", "funnel", "trend", "anomaly"]), title: z.string().trim().min(3).max(180), data: z.record(z.string(), z.unknown()), caption: z.string().trim().max(4_000).optional() })).mutation(({ ctx, input }) => recordVisualizationForUser(ctx.user.id, input)),
+  recordQuality: protectedProcedure.input(z.object({ analysisId: z.number().int().positive(), checkType: z.enum(["missing_values", "duplicates", "invalid_values", "schema_change", "timestamp_quality", "outliers", "definition_consistency"]), status: z.enum(["passed", "warning", "failed"]), affectedPercent: z.number().int().min(0).max(100), summary: z.string().trim().min(3).max(4_000) })).mutation(({ ctx, input }) => recordDataQualityForUser(ctx.user.id, input)),
+  storeMemory: protectedProcedure.input(z.object({ type: z.enum(["dataset_metadata", "schema_definition", "kpi_definition", "reporting_convention", "analysis_finding", "dashboard_reference", "recurring_report"]), title: z.string().trim().min(3).max(180), value: z.string().trim().min(3).max(10_000), importance: z.number().int().min(0).max(100).optional() })).mutation(({ ctx, input }) => storeDataMemoryForUser(ctx.user.id, input)),
+  storeSharedMemory: protectedProcedure.input(z.object({ category: z.enum(["kpis", "reporting", "dashboards", "data_sources"]), title: z.string().trim().min(3).max(180), value: z.string().trim().min(3).max(10_000) })).mutation(({ ctx, input }) => storeSharedDataMemoryForUser(ctx.user.id, input)),
+  linkDependency: protectedProcedure.input(z.object({ analysisId: z.number().int().positive(), dependentTaskId: z.number().int().positive(), dependencyType: z.enum(["blocks", "relates_to", "handoff"]) })).mutation(({ ctx, input }) => linkAnalysisDependencyForUser(ctx.user.id, input)),
+  handoff: protectedProcedure.input(z.object({ analysisId: z.number().int().positive(), teammate: z.enum(["full-stack-developer", "cybersecurity-analyst"]), title: z.string().trim().min(3).max(255), evidence: z.string().trim().min(3).max(10_000), confidence })).mutation(({ ctx, input }) => handoffAnalysisForUser(ctx.user.id, input)),
+  prepareSchedule: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(180), analysisType, cronExpression: z.string().regex(/^\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+$/, "Use a six-field UTC cron expression"), prompt: z.string().trim().min(3).max(4_000) })).mutation(({ ctx, input }) => prepareAnalysisScheduleForUser(ctx.user.id, input)),
+});

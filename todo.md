@@ -46,3 +46,32 @@
 - [x] Add a switchable workspace employee panel that shows Maya’s status, active review, risk level, and latest finding from security data.
 - [x] Add Vitest coverage for successful finding, remediation-verification, and Maya-to-Alex handoff persistence paths using repository mocks.
 - [x] Save the final post-security checkpoint after completing the remaining verification work.
+- [x] Add a Data Analyst employee persona, model configuration, and governed data permissions without production write access.
+- [x] Extend shared and employee memory for datasets, schemas, KPI definitions, reporting conventions, findings, dashboards, and recurring reports.
+- [x] Add typed data-source, connector, schema, query, result, analysis, data-quality, and data-permission models.
+- [x] Implement a data-source abstraction supporting CSV, Excel, SQL, REST, JSON, analytics systems, and warehouses without binding to a single provider.
+- [x] Add structured analysis tasks for trend, anomaly, KPI, customer, revenue, funnel, cohort, experiment, and operational analysis.
+- [x] Add evidence-aware result structures that distinguish fact, observation, inference, hypothesis, recommendation, and confidence.
+- [x] Add persistent Data Analyst messages, handoffs, dependencies, and cross-employee collaboration with Alex and Maya.
+- [x] Add a data insights dashboard with backend-driven KPI cards, tables, trend/bar/funnel visualizations, anomaly indicators, active analysis, and latest finding.
+- [x] Add the Data Analyst to the existing roster and switchable employee panel with current analysis, KPI status, active task, and latest finding.
+- [x] Add a scheduled-analysis foundation with bounded permissions and no background execution beyond supported infrastructure.
+- [x] Add Vitest coverage for data-analysis validation, permissions, result quality, and cross-employee collaboration.
+- [x] Verify desktop and mobile data views, then save a delivery checkpoint.
+- [x] Persist and surface data-specific concepts in shared company memory, including KPI definitions, reporting conventions, dashboards, and recurring reports.
+- [x] Add task dependency support to the cross-employee analysis workflow.
+- [x] Render backend-provided funnel and anomaly visualizations with distinct, result-data-driven indicators.
+- [x] Integrate Noor into the existing workspace roster and switchable employee panel in Home.
+- [x] Add route validation, permission-boundary, and successful data-analysis persistence coverage.
+- [x] Save a post-Data-Analyst delivery checkpoint after final verification.
+- [x] Wire task-dependency persistence into the real cross-employee analysis handoff flow.
+- [x] Add Noor to the main Home workspace roster/sidebar alongside Alex and Maya.
+- [x] Add mocked successful persistence tests for source registration, analysis, result, quality, and dependency flows.
+- [x] Save the final Data Analyst delivery checkpoint after the verified build.
+- [x] Render Noor in the main Home workspace sidebar team roster alongside Alex and Maya.
+- [x] Save the final post-Data-Analyst checkpoint after the verified Home roster update.
+- [x] Add Noor to the actual main Home left-sidebar team roster alongside Alex and Maya.
+- [x] Save a post-Data-Analyst checkpoint after the verified main sidebar roster update.
+- [x] Replace the DOM-injected Noor roster entry with a directly rendered React JSX sidebar entry.
+- [x] Re-run checks and visual verification after the production-quality Home sidebar update.
+- [x] Save the final post-Data-Analyst checkpoint after the verified JSX sidebar update.
