@@ -1,0 +1,28 @@
+# Project TODO
+
+- [x] Define a polished dark-premium visual system with a responsive three-pane workspace shell.
+- [x] Build a company onboarding flow that captures workspace identity, goals, technical context, and team context.
+- [x] Introduce the Full-Stack Developer AI employee during onboarding with a clear role and capability summary.
+- [x] Create responsive workspace navigation for Chat, Tasks, Activity, and Memory.
+- [x] Build a shared team chat that supports assignment prompts, structured conversation history, typing states, and handoff context.
+- [x] Build an employee profile panel showing status, current work, model configuration, recent actions, and handoff state.
+- [x] Build task views that show the request-to-completion lifecycle, task status, progress, steps, and results.
+- [x] Build a company memory view for saved context, decisions, references, project knowledge, and technical constraints.
+- [x] Establish typed database models for companies, employees, memories, conversations, messages, tasks, task steps, and activity events.
+- [x] Add modular database repository helpers and typed tRPC workspace procedures.
+- [x] Add safe demo workspace seed data and an interactive UI data flow for the first product layer.
+- [x] Add a provider-ready AI employee configuration boundary without exposing provider keys to the frontend.
+- [x] Add automated tests covering essential workspace procedures and data transformation logic.
+- [x] Verify the workspace visually at desktop and mobile sizes, resolve issues, and save a final checkpoint.
+- [x] Extend onboarding with description, industry, and team context, then surface those values in saved company memory.
+- [x] Add model configuration and a recent-actions feed to the employee panel.
+- [x] Add task lifecycle steps and result summaries to the task experience.
+- [x] Add references and technical constraints to the company memory view.
+- [x] Replace prototype workspace procedures with authorized persistent task and message data flows.
+- [x] Drive the core workspace UI from the shared tRPC overview and mutation contracts rather than duplicated static state.
+- [x] Add Vitest coverage for workspace procedure validation and persistence boundaries.
+- [x] Complete final desktop and mobile verification, then save the delivery checkpoint.
+- [x] Surface the saved company industry alongside company context in the Memory view.
+- [x] Remove preview-state rendering in favor of the shared workspace overview read model for chat, tasks, and memory.
+- [x] Add procedure-level Vitest coverage for task creation, status updates, and message persistence boundaries.
+- [x] Save the final delivery checkpoint after the final verified build.
