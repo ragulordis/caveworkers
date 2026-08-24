@@ -111,3 +111,16 @@
 - [x] Save the final verified onboarding-fix checkpoint.
 - [x] Add a mocked repository test that exercises real first-workspace creation for an unaffiliated authenticated user.
 - [x] Save a final checkpoint after the verified first-workspace creation regression test.
+- [x] Automatically provision a safe initial company workspace for authenticated users without membership before workspace mutations execute.
+- [x] Remove the remaining setup-required mutation dead end from chat and task flows.
+- [x] Configure the supplied OpenRouter API key as a server-only secret and validate it without exposing it to the client.
+- [x] Add regression coverage for automatic workspace provisioning and unaffiliated-user mutations.
+- [x] Verify the fully automatic setup flow and save a delivery checkpoint.
+- [x] Add an end-to-end mocked workspace mutation test that succeeds after automatic provisioning for an unaffiliated user.
+- [x] Verify the automatic first-load workspace experience and save the final delivery checkpoint.
+- [x] Add a mocked integration test that proves real automatic workspace provisioning enables the first authenticated mutation.
+- [x] Re-verify the first-load auto-provision experience and save the final delivery checkpoint.
+- [x] Exercise an actual workspace task-mutation helper through automatic provisioning with repository dependencies mocked.
+- [x] Re-verify the unaffiliated first-load experience and save the final automatic-provisioning checkpoint.
+- [x] Prove the actual task-mutation helper invokes automatic provisioning internally for an unaffiliated user.
+- [x] Re-run first-load verification after the final auto-provision helper change and save the checkpoint.

@@ -154,11 +154,40 @@ export async function getPrimaryCompanyForUser(userId: number) {
   return result[0]?.company;
 }
 
+/** Ensures a signed-in user has an initial private workspace before any company-scoped operation. */
+export async function provisionWhenMissing<T>(findExisting: () => Promise<T | undefined>, provision: () => Promise<void>) {
+  const existing = await findExisting();
+  if (existing) return existing;
+  await provision();
+  return findExisting();
+}
+
+export async function ensureCompanyForUserWithDependencies<T>(dependencies: { findExisting: () => Promise<T | undefined>; ownerName: () => Promise<string | undefined>; createWorkspace: (input: CreateCompanyWorkspaceInput) => Promise<void> }) {
+  const company = await provisionWhenMissing(dependencies.findExisting, async () => {
+    const ownerName = (await dependencies.ownerName())?.trim() || "My";
+    await dependencies.createWorkspace({ name: `${ownerName}'s workspace`, description: "Initial private workspace", technologyStack: [] });
+  });
+  if (!company) throw new Error("Unable to provision an initial company workspace");
+  return company;
+}
+
+export async function ensurePrimaryCompanyForUser(userId: number) {
+  return ensureCompanyForUserWithDependencies({
+    findExisting: () => getPrimaryCompanyForUser(userId),
+    ownerName: async () => {
+    const db = await getDb();
+    if (!db) throw new Error("Database is not available");
+    const user = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+      return user?.name ?? undefined;
+    },
+    createWorkspace: async (input) => { await createCompanyWorkspace(userId, input); },
+  });
+}
+
 export async function getWorkspaceRecordsForUser(userId: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const company = await getPrimaryCompanyForUser(userId);
-  if (!company) return undefined;
+  const company = await ensurePrimaryCompanyForUser(userId);
   const [employeeRows, conversationRows, taskRows, contextRows, eventRows] = await Promise.all([
     db.select().from(employees).where(eq(employees.companyId, company.id)),
     db.select().from(conversations).where(eq(conversations.companyId, company.id)).orderBy(asc(conversations.createdAt)).limit(1),
@@ -172,20 +201,29 @@ export async function getWorkspaceRecordsForUser(userId: number) {
 }
 
 async function getAuthorizedCompany(dbUserId: number) {
-  const company = await getPrimaryCompanyForUser(dbUserId);
-  if (!company) throw new Error("No company workspace is available for this user");
-  return company;
+  return ensurePrimaryCompanyForUser(dbUserId);
+}
+
+export async function createTaskWithDependencies(userId: number, input: { title: string; description?: string }, dependencies: { company: () => Promise<{ id: number }>; employee: (companyId: number) => Promise<{ id: number } | undefined>; insertTask: (value: { companyId: number; requestedByUserId: number; assignedEmployeeId?: number; title: string; description?: string }) => Promise<number>; insertActivity: (value: { companyId: number; employeeId?: number; taskId: number; action: string; summary: string; status: "started" }) => Promise<void> }) {
+  const company = await dependencies.company();
+  const employee = await dependencies.employee(company.id);
+  const taskId = await dependencies.insertTask({ companyId: company.id, requestedByUserId: userId, assignedEmployeeId: employee?.id, title: input.title, description: input.description });
+  await dependencies.insertActivity({ companyId: company.id, employeeId: employee?.id, taskId, action: "task_created", summary: `Captured a new task: ${input.title}`, status: "started" });
+  return { id: taskId, title: input.title, description: input.description, status: "planning" as const, progress: 0 };
 }
 
 export async function createTaskForUser(userId: number, input: { title: string; description?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const company = await getAuthorizedCompany(userId);
-  const employee = (await db.select().from(employees).where(eq(employees.companyId, company.id)).limit(1))[0];
-  const result = await db.insert(tasks).values({ companyId: company.id, requestedByUserId: userId, assignedEmployeeId: employee?.id, title: input.title, description: input.description, status: "planning", progress: 0 });
-  const taskId = Number((result as unknown as { insertId: number }).insertId);
-  await db.insert(activityEvents).values({ companyId: company.id, employeeId: employee?.id, taskId, action: "task_created", summary: `Captured a new task: ${input.title}`, status: "started" });
-  return { id: taskId, title: input.title, description: input.description, status: "planning" as const, progress: 0 };
+  return createTaskWithDependencies(userId, input, {
+    company: () => getAuthorizedCompany(userId),
+    employee: async (companyId) => (await db.select().from(employees).where(eq(employees.companyId, companyId)).limit(1))[0],
+    insertTask: async (value) => {
+      const result = await db.insert(tasks).values({ ...value, status: "planning", progress: 0 });
+      return Number((result as unknown as { insertId: number }).insertId);
+    },
+    insertActivity: async (value) => { await db.insert(activityEvents).values(value); },
+  });
 }
 
 export async function updateTaskForUser(userId: number, input: { taskId: number; status: "backlog" | "planning" | "in_progress" | "waiting" | "review" | "completed" | "blocked"; progress?: number }) {
