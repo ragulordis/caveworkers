@@ -128,3 +128,10 @@
 - [x] Add regression coverage for database insert result shapes that do not expose a direct numeric insert ID.
 - [x] Verify the repaired automatic first-workspace flow and save a fix checkpoint.
 - [x] Visually verify the company-ID provisioning repair and save the post-fix checkpoint.
+- [x] Fix task creation so activity events receive a valid resolved task identifier across database insert-result shapes.
+- [x] Add regression coverage for task insert results without a direct numeric insert ID.
+- [x] Verify message-to-task persistence and save a task-creation fix checkpoint.
+- [x] Add a regression test that exercises the chat message-to-task flow after task-ID fallback resolution.
+- [x] Save a post-task-creation checkpoint after the verified chat-to-task flow.
+- [x] Exercise real task-ID fallback resolution within the chat-to-task persistence regression path.
+- [x] Save the final task-creation repair checkpoint after the full regression suite passes.

@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { createTaskWithDependencies, ensureCompanyForUserWithDependencies, getCreatedRecordId, provisionWhenMissing } from "./db";
+import { createTaskWithDependencies, ensureCompanyForUserWithDependencies, getCreatedRecordId, provisionWhenMissing, resolveCreatedTaskId } from "./db";
 
 describe("automatic initial workspace provisioning", () => {
   it("resolves valid created-record identifiers across MySQL insert-result shapes", () => {
     expect(getCreatedRecordId({ insertId: 12 })).toBe(12);
     expect(getCreatedRecordId([{ insertId: 13n }])).toBe(13);
     expect(getCreatedRecordId({})).toBeUndefined();
+  });
+
+  it("uses a scoped task lookup when the insert result omits an identifier", async () => {
+    await expect(resolveCreatedTaskId({}, async () => ({ id: 101 }))).resolves.toBe(101);
+    await expect(resolveCreatedTaskId({}, async () => undefined)).resolves.toBeUndefined();
   });
 
   it("creates exactly one first workspace when an authenticated user has no membership", async () => {
@@ -26,7 +31,7 @@ describe("automatic initial workspace provisioning", () => {
   it("provisions a first company inside the first authenticated task mutation", async () => {
     let company: { id: number; name: string } | undefined;
     const createdInputs: Array<{ name: string }> = [];
-    const task = await createTaskWithDependencies(1, { title: "First task" }, { company: () => ensureCompanyForUserWithDependencies({ findExisting: async () => company, ownerName: async () => "First User", createWorkspace: async (input) => { createdInputs.push(input); company = { id: 88, name: input.name }; } }), employee: async () => ({ id: 3 }), insertTask: async (value) => { expect(value.companyId).toBe(88); return 101; }, insertActivity: async (value) => { expect(value.taskId).toBe(101); } });
+    const task = await createTaskWithDependencies(1, { title: "First task" }, { company: () => ensureCompanyForUserWithDependencies({ findExisting: async () => company, ownerName: async () => "First User", createWorkspace: async (input) => { createdInputs.push(input); company = { id: 88, name: input.name }; } }), employee: async () => ({ id: 3 }), insertTask: async (value) => { expect(value.companyId).toBe(88); return (await resolveCreatedTaskId({}, async () => ({ id: 101 })))!; }, insertActivity: async (value) => { expect(value.taskId).toBe(101); } });
     expect(createdInputs).toEqual([{ name: "First User's workspace", description: "Initial private workspace", technologyStack: [] }]);
     expect(task).toMatchObject({ id: 101, title: "First task", status: "planning" });
   });

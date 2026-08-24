@@ -69,6 +69,10 @@ export function getCreatedRecordId(result: unknown) {
   return Number.isFinite(numericId) && numericId > 0 ? numericId : undefined;
 }
 
+export async function resolveCreatedTaskId(result: unknown, findCreatedTask: () => Promise<{ id: number } | undefined>) {
+  return getCreatedRecordId(result) ?? (await findCreatedTask())?.id;
+}
+
 /** Creates the initial company, membership, context, employee, and shared engineering conversation atomically. */
 export async function createCompanyWorkspace(userId: number, input: CreateCompanyWorkspaceInput) {
   const db = await getDb();
@@ -237,7 +241,9 @@ export async function createTaskForUser(userId: number, input: { title: string; 
     employee: async (companyId) => (await db.select().from(employees).where(eq(employees.companyId, companyId)).limit(1))[0],
     insertTask: async (value) => {
       const result = await db.insert(tasks).values({ ...value, status: "planning", progress: 0 });
-      return Number((result as unknown as { insertId: number }).insertId);
+      const taskId = await resolveCreatedTaskId(result, async () => (await db.select().from(tasks).where(and(eq(tasks.companyId, value.companyId), eq(tasks.requestedByUserId, value.requestedByUserId), eq(tasks.title, value.title))).orderBy(desc(tasks.id)).limit(1))[0]);
+      if (!taskId) throw new Error("Unable to resolve the newly created task");
+      return taskId;
     },
     insertActivity: async (value) => { await db.insert(activityEvents).values(value); },
   });
