@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc";
 import { createAnalysisForUser, getDataInsightsForUser, getRelevantDataContextForUser, handoffAnalysisForUser, linkAnalysisDependencyForUser, prepareAnalysisScheduleForUser, recordAnalysisResultForUser, recordDataQualityForUser, recordVisualizationForUser, registerDataSourceForUser, storeDataMemoryForUser, storeSharedDataMemoryForUser } from "../data/service";
 
 const analysisType = z.enum(["trend", "anomaly", "kpi", "customer", "revenue", "product", "funnel", "cohort", "experiment", "operational"]);
@@ -8,7 +8,7 @@ const resultType = z.enum(["fact", "observation", "inference", "hypothesis", "re
 const confidence = z.enum(["high", "medium", "low", "insufficient"]);
 
 export const dataRouter = router({
-  dashboard: publicProcedure.query(({ ctx }) => getDataInsightsForUser(ctx.user?.id)),
+  dashboard: protectedProcedure.query(({ ctx }) => getDataInsightsForUser(ctx.user.id)),
   context: protectedProcedure.query(({ ctx }) => getRelevantDataContextForUser(ctx.user.id)),
   registerSource: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), sourceType, connectorKey: z.string().trim().min(2).max(120), schemaSummary: z.string().trim().max(4_000).optional() })).mutation(({ ctx, input }) => registerDataSourceForUser(ctx.user.id, input)),
   createAnalysis: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), question: z.string().trim().min(3).max(10_000), analysisType, dataSourceId: z.number().int().positive().optional(), comparisonPeriod: z.string().trim().max(160).optional() })).mutation(({ ctx, input }) => createAnalysisForUser(ctx.user.id, input)),

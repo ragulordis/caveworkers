@@ -140,3 +140,10 @@
 - [x] Add automated coverage for document upload validation and Activity event detail retrieval.
 - [x] Verify the responsive attachment and Activity detail experience, then save a delivery checkpoint.
 - [x] Save the final checkpoint for the verified company-document attachment and Activity detail work.
+- [x] Add a dedicated Google sign-in page using the existing secure OAuth flow.
+- [x] Enforce tenant-scoped company access across workspace data, documents, tasks, messages, and Activity records.
+- [x] Add tenant-isolation and authentication-entry regression coverage.
+- [x] Verify the authenticated entry and tenant-scoped workspace experience, then save a delivery checkpoint.
+- [x] Validate related task identifiers against the authenticated user's company before storing chat messages.
+- [x] Add a regression proving cross-tenant task IDs cannot be linked from workspace messages.
+- [x] Add coverage for the login entry and unauthenticated route-gate behavior.

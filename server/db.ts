@@ -70,6 +70,12 @@ export function getCreatedRecordId(result: unknown) {
   return Number.isFinite(numericId) && numericId > 0 ? numericId : undefined;
 }
 
+/** Rejects a guessed record identifier unless it belongs to the authenticated user's company tenant. */
+export function requireTenantRecord<T extends { companyId: number }>(record: T | undefined, tenantCompanyId: number, resource: string) {
+  if (!record || record.companyId !== tenantCompanyId) throw new Error(`${resource} was not found in this company workspace`);
+  return record;
+}
+
 export async function resolveCreatedTaskId(result: unknown, findCreatedTask: () => Promise<{ id: number } | undefined>) {
   return getCreatedRecordId(result) ?? (await findCreatedTask())?.id;
 }
@@ -260,14 +266,24 @@ export async function updateTaskForUser(userId: number, input: { taskId: number;
   return input;
 }
 
+export async function appendMessageWithDependencies(userId: number, input: { content: string; relatedTaskId?: number }, dependencies: { company: () => Promise<{ id: number }>; conversation: (companyId: number) => Promise<{ id: number } | undefined>; task: (taskId: number) => Promise<{ id: number; companyId: number } | undefined>; insert: (value: { conversationId: number; senderType: "user"; senderUserId: number; content: string; messageType: "message" | "task_assignment"; relatedTaskId?: number; createdBy: string }) => Promise<unknown> }) {
+  const company = await dependencies.company();
+  const conversation = await dependencies.conversation(company.id);
+  if (!conversation) throw new Error("Company engineering conversation was not found");
+  if (input.relatedTaskId) requireTenantRecord(await dependencies.task(input.relatedTaskId), company.id, "Related task");
+  const result = await dependencies.insert({ conversationId: conversation.id, senderType: "user", senderUserId: userId, content: input.content, messageType: input.relatedTaskId ? "task_assignment" : "message", relatedTaskId: input.relatedTaskId, createdBy: "user" });
+  return { id: Number((result as unknown as { insertId: number }).insertId), createdAt: Date.now() };
+}
+
 export async function appendMessageForUser(userId: number, input: { content: string; relatedTaskId?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const company = await getAuthorizedCompany(userId);
-  const conversation = (await db.select().from(conversations).where(eq(conversations.companyId, company.id)).orderBy(asc(conversations.createdAt)).limit(1))[0];
-  if (!conversation) throw new Error("Company engineering conversation was not found");
-  const result = await db.insert(messages).values({ conversationId: conversation.id, senderType: "user", senderUserId: userId, content: input.content, messageType: input.relatedTaskId ? "task_assignment" : "message", relatedTaskId: input.relatedTaskId, createdBy: "user" });
-  return { id: Number((result as unknown as { insertId: number }).insertId), createdAt: Date.now() };
+  return appendMessageWithDependencies(userId, input, {
+    company: () => getAuthorizedCompany(userId),
+    conversation: async (companyId) => (await db.select().from(conversations).where(eq(conversations.companyId, companyId)).orderBy(asc(conversations.createdAt)).limit(1))[0],
+    task: async (taskId) => (await db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1))[0],
+    insert: async (value) => db.insert(messages).values(value),
+  });
 }
 
 const supportedDocumentTypes = new Map([
@@ -307,8 +323,7 @@ export async function getCompanyDocumentDownloadForUser(userId: number, document
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const company = await getAuthorizedCompany(userId);
-  const document = (await db.select().from(companyDocuments).where(and(eq(companyDocuments.id, documentId), eq(companyDocuments.companyId, company.id))).limit(1))[0];
-  if (!document) throw new Error("Company document was not found in this workspace");
+  const document = requireTenantRecord((await db.select().from(companyDocuments).where(eq(companyDocuments.id, documentId)).limit(1))[0], company.id, "Company document");
   return { id: document.id, name: document.originalName, url: await storageGetSignedUrl(document.storageKey) };
 }
 
@@ -316,8 +331,7 @@ export async function getActivityEventDetailForUser(userId: number, eventId: num
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const company = await getAuthorizedCompany(userId);
-  const event = (await db.select().from(activityEvents).where(and(eq(activityEvents.id, eventId), eq(activityEvents.companyId, company.id))).limit(1))[0];
-  if (!event) throw new Error("Activity event was not found in this workspace");
+  const event = requireTenantRecord((await db.select().from(activityEvents).where(eq(activityEvents.id, eventId)).limit(1))[0], company.id, "Activity event");
   const [task, employee] = await Promise.all([
     event.taskId ? db.select().from(tasks).where(and(eq(tasks.id, event.taskId), eq(tasks.companyId, company.id))).limit(1) : Promise.resolve([]),
     event.employeeId ? db.select().from(employees).where(and(eq(employees.id, event.employeeId), eq(employees.companyId, company.id))).limit(1) : Promise.resolve([]),

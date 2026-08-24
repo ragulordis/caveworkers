@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { appendMessageForUser, CompanyDocumentUploadInput, createCompanyWorkspace, createTaskForUser, getActivityEventDetailForUser, getCompanyDocumentDownloadForUser, uploadCompanyDocumentForUser, updateTaskForUser } from "../db";
 import { getWorkspaceOverviewForUser } from "../workspace/service";
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc";
 
 const createCompanyInput = z.object({
   name: z.string().trim().min(2).max(160),
@@ -22,7 +22,7 @@ export async function requireWorkspaceForMutation<T>(operation: () => Promise<T>
 
 /** Product-layer contracts. Persistence services can be swapped in without changing consumers. */
 export const workspaceRouter = router({
-  overview: publicProcedure.query(({ ctx }) => getWorkspaceOverviewForUser(ctx.user?.id)),
+  overview: protectedProcedure.query(({ ctx }) => getWorkspaceOverviewForUser(ctx.user.id)),
   createCompany: protectedProcedure.input(createCompanyInput).mutation(async ({ input, ctx }) => {
     const workspace = await createCompanyWorkspace(ctx.user.id, input);
     return { workspace, persistence: "saved" as const };
