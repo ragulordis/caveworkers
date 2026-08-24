@@ -6,6 +6,7 @@ export type WorkspaceOverview = {
   messages: Array<{ id: string; sender: "user" | "employee" | "system"; content: string; createdAt: number; messageType: string; employeeName?: string; employeeKey?: string }>;
   tasks: Array<{ id: string; title: string; state: WorkspaceTaskState; progress: number; updatedAt: number; detail: string; tags: string[] }>;
   memory: Array<{ id: string; category: string; title: string; value: string }>;
+  documents: Array<{ id: string; name: string; contentType: string; sizeBytes: number; createdAt: number }>;
   events: Array<{ id: string; action: string; summary: string; status: "started" | "completed"; createdAt: number }>;
 };
 
@@ -51,6 +52,7 @@ export function getDemoWorkspace(): WorkspaceOverview {
       { id: "memory-4", category: "Technical constraint", title: "Release compatibility", value: "New services must retain the current enterprise SSO and audit event contracts." },
       { id: "memory-5", category: "Reference", title: "Architecture handbook", value: "Auth gateway and tenant isolation decision record, updated for Q3 planning." },
     ],
+    documents: [],
     events: [
       { id: "event-1", action: "reviewed_authentication", summary: "Reviewed token refresh flow across 14 API endpoints.", status: "completed", createdAt: now - 120_000 },
       { id: "event-2", action: "recorded_decision", summary: "Recorded the tenant-claim gateway decision.", status: "completed", createdAt: now - 780_000 },

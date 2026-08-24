@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { appendMessageForUser, createCompanyWorkspace, createTaskForUser, updateTaskForUser } from "../db";
+import { appendMessageForUser, CompanyDocumentUploadInput, createCompanyWorkspace, createTaskForUser, getActivityEventDetailForUser, getCompanyDocumentDownloadForUser, uploadCompanyDocumentForUser, updateTaskForUser } from "../db";
 import { getWorkspaceOverviewForUser } from "../workspace/service";
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 
@@ -14,6 +14,7 @@ const createCompanyInput = z.object({
 });
 
 const taskStatus = z.enum(["backlog", "planning", "in_progress", "waiting", "review", "completed", "blocked"]);
+const companyDocumentUpload = z.object({ fileName: z.string().trim().min(1).max(255), contentType: z.string().trim().min(1).max(120), sizeBytes: z.number().int().positive().max(10 * 1024 * 1024), base64Data: z.string().min(4).max(14 * 1024 * 1024) });
 
 export async function requireWorkspaceForMutation<T>(operation: () => Promise<T>) {
   try { return await operation(); } catch (error) { if (error instanceof Error && error.message === "No company workspace is available for this user") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete company setup before assigning work. Your onboarding form is ready to create the workspace." }); throw error; }
@@ -29,4 +30,7 @@ export const workspaceRouter = router({
   createTask: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), description: z.string().trim().max(6_000).optional() })).mutation(async ({ input, ctx }) => ({ task: await requireWorkspaceForMutation(() => createTaskForUser(ctx.user.id, input)) })),
   updateTaskStatus: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), status: taskStatus, progress: z.number().int().min(0).max(100).optional() })).mutation(async ({ input, ctx }) => ({ task: await requireWorkspaceForMutation(() => updateTaskForUser(ctx.user.id, input)) })),
   appendMessage: protectedProcedure.input(z.object({ content: z.string().trim().min(1).max(10_000), relatedTaskId: z.number().int().positive().optional() })).mutation(async ({ input, ctx }) => ({ message: await requireWorkspaceForMutation(() => appendMessageForUser(ctx.user.id, input)) })),
+  uploadCompanyDocument: protectedProcedure.input(companyDocumentUpload).mutation(async ({ input, ctx }) => ({ document: await requireWorkspaceForMutation(() => uploadCompanyDocumentForUser(ctx.user.id, input as CompanyDocumentUploadInput)) })),
+  companyDocumentDownload: protectedProcedure.input(z.object({ documentId: z.number().int().positive() })).mutation(async ({ input, ctx }) => getCompanyDocumentDownloadForUser(ctx.user.id, input.documentId)),
+  activityEventDetail: protectedProcedure.input(z.object({ eventId: z.number().int().positive() })).query(async ({ input, ctx }) => getActivityEventDetailForUser(ctx.user.id, input.eventId)),
 });

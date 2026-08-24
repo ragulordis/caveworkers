@@ -120,6 +120,17 @@ export const messages = mysqlTable("messages", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const companyDocuments = mysqlTable("companyDocuments", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull().references(() => companies.id),
+  uploadedByUserId: int("uploadedByUserId").notNull().references(() => users.id),
+  originalName: varchar("originalName", { length: 255 }).notNull(),
+  storageKey: varchar("storageKey", { length: 500 }).notNull(),
+  contentType: varchar("contentType", { length: 120 }).notNull(),
+  sizeBytes: int("sizeBytes").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [index("companyDocuments_companyId_createdAt_idx").on(table.companyId, table.createdAt)]);
+
 export const taskSteps = mysqlTable("taskSteps", {
   id: int("id").autoincrement().primaryKey(),
   taskId: int("taskId").notNull().references(() => tasks.id),

@@ -22,6 +22,7 @@ export async function getWorkspaceOverviewForUser(userId?: number): Promise<Work
       ...(records.company.industry ? [{ id: `company-industry-${records.company.id}`, category: "company context", title: "Industry", value: records.company.industry }] : []),
       ...records.context.map((item) => ({ id: String(item.id), category: item.category.replaceAll("_", " "), title: item.title, value: item.value })),
     ],
+    documents: records.documents.map((document) => ({ id: String(document.id), name: document.originalName, contentType: document.contentType, sizeBytes: document.sizeBytes, createdAt: document.createdAt.getTime() })),
     events: records.events.map((event) => ({ id: String(event.id), action: event.action, summary: event.summary, status: event.status === "started" ? "started" as const : "completed" as const, createdAt: event.createdAt.getTime() })),
   };
 }

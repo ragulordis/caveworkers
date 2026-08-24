@@ -1,9 +1,10 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { activityEvents, companies, companyContext, companyMembers, conversations, dataSourcePermissions, employees, InsertUser, messages, qaToolPolicies, securityToolPolicies, tasks, users } from "../drizzle/schema";
+import { activityEvents, companies, companyContext, companyDocuments, companyMembers, conversations, dataSourcePermissions, employees, InsertUser, messages, qaToolPolicies, securityToolPolicies, tasks, users } from "../drizzle/schema";
 import { dataAnalystPersona } from "./agents/personas/dataAnalyst";
 import { qaEngineerPersona } from "./agents/personas/qaEngineer";
 import { ENV } from "./_core/env";
+import { storageGetSignedUrl, storagePut } from "./storage";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -209,16 +210,17 @@ export async function getWorkspaceRecordsForUser(userId: number) {
   const db = await getDb();
   if (!db) return undefined;
   const company = await ensurePrimaryCompanyForUser(userId);
-  const [employeeRows, conversationRows, taskRows, contextRows, eventRows] = await Promise.all([
+  const [employeeRows, conversationRows, taskRows, contextRows, eventRows, documentRows] = await Promise.all([
     db.select().from(employees).where(eq(employees.companyId, company.id)),
     db.select().from(conversations).where(eq(conversations.companyId, company.id)).orderBy(asc(conversations.createdAt)).limit(1),
     db.select().from(tasks).where(eq(tasks.companyId, company.id)).orderBy(desc(tasks.updatedAt)),
     db.select().from(companyContext).where(eq(companyContext.companyId, company.id)).orderBy(desc(companyContext.updatedAt)),
     db.select().from(activityEvents).where(eq(activityEvents.companyId, company.id)).orderBy(desc(activityEvents.createdAt)).limit(12),
+    db.select().from(companyDocuments).where(eq(companyDocuments.companyId, company.id)).orderBy(desc(companyDocuments.createdAt)).limit(24),
   ]);
   const conversation = conversationRows[0];
   const conversationMessages = conversation ? await db.select().from(messages).where(eq(messages.conversationId, conversation.id)).orderBy(asc(messages.createdAt)) : [];
-  return { company, employee: employeeRows.find((employee) => employee.key === "full-stack-developer") ?? employeeRows[0], employees: employeeRows, conversation, tasks: taskRows, context: contextRows, events: eventRows, messages: conversationMessages };
+  return { company, employee: employeeRows.find((employee) => employee.key === "full-stack-developer") ?? employeeRows[0], employees: employeeRows, conversation, tasks: taskRows, context: contextRows, events: eventRows, documents: documentRows, messages: conversationMessages };
 }
 
 async function getAuthorizedCompany(dbUserId: number) {
@@ -266,4 +268,59 @@ export async function appendMessageForUser(userId: number, input: { content: str
   if (!conversation) throw new Error("Company engineering conversation was not found");
   const result = await db.insert(messages).values({ conversationId: conversation.id, senderType: "user", senderUserId: userId, content: input.content, messageType: input.relatedTaskId ? "task_assignment" : "message", relatedTaskId: input.relatedTaskId, createdBy: "user" });
   return { id: Number((result as unknown as { insertId: number }).insertId), createdAt: Date.now() };
+}
+
+const supportedDocumentTypes = new Map([
+  ["text/csv", ["csv"]], ["application/pdf", ["pdf"]], ["text/plain", ["txt", "md"]],
+  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", ["docx"]], ["application/msword", ["doc"]],
+  ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ["xlsx"]], ["application/vnd.ms-excel", ["xls"]],
+]);
+export const MAX_COMPANY_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+export type CompanyDocumentUploadInput = { fileName: string; contentType: string; sizeBytes: number; base64Data: string };
+
+export function validateCompanyDocumentUpload(input: CompanyDocumentUploadInput) {
+  const fileName = input.fileName.trim().replace(/[\\/]/g, "_");
+  const extension = fileName.split(".").pop()?.toLowerCase();
+  const permittedExtensions = supportedDocumentTypes.get(input.contentType);
+  if (!fileName || fileName.length > 255 || !extension || !permittedExtensions?.includes(extension)) throw new Error("Attach a CSV, PDF, Word, Excel, text, or Markdown company document.");
+  if (!Number.isInteger(input.sizeBytes) || input.sizeBytes < 1 || input.sizeBytes > MAX_COMPANY_DOCUMENT_BYTES) throw new Error("Company documents must be between 1 byte and 10 MB.");
+  const data = Buffer.from(input.base64Data, "base64");
+  if (data.length !== input.sizeBytes || !data.length) throw new Error("The document data is invalid or incomplete.");
+  return { fileName, data };
+}
+
+export async function uploadCompanyDocumentForUser(userId: number, input: CompanyDocumentUploadInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const company = await getAuthorizedCompany(userId);
+  const { fileName, data } = validateCompanyDocumentUpload(input);
+  const stored = await storagePut(`companies/${company.id}/documents/${fileName}`, data, input.contentType);
+  const result = await db.insert(companyDocuments).values({ companyId: company.id, uploadedByUserId: userId, originalName: fileName, storageKey: stored.key, contentType: input.contentType, sizeBytes: input.sizeBytes });
+  const documentId = getCreatedRecordId(result) ?? (await db.select().from(companyDocuments).where(and(eq(companyDocuments.companyId, company.id), eq(companyDocuments.uploadedByUserId, userId), eq(companyDocuments.storageKey, stored.key))).orderBy(desc(companyDocuments.id)).limit(1))[0]?.id;
+  if (!documentId) throw new Error("Unable to record the uploaded company document");
+  await db.insert(activityEvents).values({ companyId: company.id, action: "company_document_uploaded", summary: `Added company document: ${fileName}`, status: "completed" });
+  return { id: documentId, name: fileName, contentType: input.contentType, sizeBytes: input.sizeBytes, createdAt: Date.now() };
+}
+
+export async function getCompanyDocumentDownloadForUser(userId: number, documentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const company = await getAuthorizedCompany(userId);
+  const document = (await db.select().from(companyDocuments).where(and(eq(companyDocuments.id, documentId), eq(companyDocuments.companyId, company.id))).limit(1))[0];
+  if (!document) throw new Error("Company document was not found in this workspace");
+  return { id: document.id, name: document.originalName, url: await storageGetSignedUrl(document.storageKey) };
+}
+
+export async function getActivityEventDetailForUser(userId: number, eventId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const company = await getAuthorizedCompany(userId);
+  const event = (await db.select().from(activityEvents).where(and(eq(activityEvents.id, eventId), eq(activityEvents.companyId, company.id))).limit(1))[0];
+  if (!event) throw new Error("Activity event was not found in this workspace");
+  const [task, employee] = await Promise.all([
+    event.taskId ? db.select().from(tasks).where(and(eq(tasks.id, event.taskId), eq(tasks.companyId, company.id))).limit(1) : Promise.resolve([]),
+    event.employeeId ? db.select().from(employees).where(and(eq(employees.id, event.employeeId), eq(employees.companyId, company.id))).limit(1) : Promise.resolve([]),
+  ]);
+  return { id: event.id, action: event.action, summary: event.summary, status: event.status, createdAt: event.createdAt, task: task[0] ? { id: task[0].id, title: task[0].title, status: task[0].status, progress: task[0].progress } : undefined, employee: employee[0] ? { id: employee[0].id, name: employee[0].name, role: employee[0].role } : undefined };
 }

@@ -135,3 +135,8 @@
 - [x] Save a post-task-creation checkpoint after the verified chat-to-task flow.
 - [x] Exercise real task-ID fallback resolution within the chat-to-task persistence regression path.
 - [x] Save the final task-creation repair checkpoint after the full regression suite passes.
+- [x] Add secure company document and CSV attachments from the workspace input, with persistent metadata and authorized download links.
+- [x] Add an Activity event detail view that opens when users select an event.
+- [x] Add automated coverage for document upload validation and Activity event detail retrieval.
+- [x] Verify the responsive attachment and Activity detail experience, then save a delivery checkpoint.
+- [x] Save the final checkpoint for the verified company-document attachment and Activity detail work.
