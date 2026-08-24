@@ -30,7 +30,7 @@ export function getDemoWorkspace(): WorkspaceOverview {
       name: "Alex",
       role: "Full-Stack Developer",
       status: "working",
-      model: "openrouter-configured-model",
+      model: "manus-managed-model",
       currentTaskId: "CW-042",
       toolPermissions: ["repository.read", "task.plan", "memory.read"],
     },

@@ -5,8 +5,8 @@ export const qaEngineerPersona = {
   role: "Senior QA Automation Engineer",
   systemPromptKey: "qa-automation-engineer-v1",
   modelConfig: {
-    provider: "openrouter",
-    model: "openrouter-configured-model",
+    provider: "manus",
+    model: "manus-managed-model",
     temperature: 0.1,
     maxTokens: 1400,
     contextLimit: 16_000,
