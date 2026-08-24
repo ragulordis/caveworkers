@@ -102,3 +102,12 @@
 - [x] Add Priya directly to the Home left-sidebar Team roster JSX.
 - [x] Add explicit protected QA procedure authorization tests.
 - [x] Save a final checkpoint after the verified QA completion updates.
+- [x] Fix authenticated onboarding when the signed-in user has no company membership.
+- [x] Prevent workspace mutations from failing with an unhandled missing-company error for newly signed-in users.
+- [x] Add regression coverage for company creation and setup from an unaffiliated authenticated user.
+- [x] Verify the repaired onboarding flow and save a fix checkpoint.
+- [x] Add backend-safe workspace mutation guards that return an actionable setup-required response for unaffiliated users.
+- [x] Add Vitest coverage for authenticated first-workspace creation without an existing company membership.
+- [x] Save the final verified onboarding-fix checkpoint.
+- [x] Add a mocked repository test that exercises real first-workspace creation for an unaffiliated authenticated user.
+- [x] Save a final checkpoint after the verified first-workspace creation regression test.
