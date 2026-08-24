@@ -11,6 +11,13 @@ export type EmployeeModelConfig = {
 export type LlmMessage = { role: "system" | "user" | "assistant"; content: string };
 export type LlmCompletion = { content: string; model: string; usage?: { inputTokens?: number; outputTokens?: number } };
 
+export const DEFAULT_OPENROUTER_MODEL = "openrouter/auto";
+
+/** Replaces the configuration placeholder with an optional deployment override or OpenRouter's router model. */
+export function resolveEmployeeModel(model: string) {
+  return model && model !== "openrouter-configured-model" ? model : process.env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL;
+}
+
 export interface LlmProvider {
   complete(input: { config: EmployeeModelConfig; messages: LlmMessage[] }): Promise<LlmCompletion>;
 }

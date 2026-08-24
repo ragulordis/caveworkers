@@ -8,6 +8,7 @@ vi.mock("../db", () => ({
   createTaskForUser: async (_userId: number, input: { title: string }) => { state.tasks += 1; return { id: 42, title: input.title, status: "planning" as const, progress: 0 }; },
   updateTaskForUser: async () => { throw new Error("unused"); },
 }));
+vi.mock("../agents/employeeResponse", () => ({ respondToTaskForUser: async () => ({ employeeName: "Alex", content: "I’ll assess the request and return next steps.", isFallback: false }) }));
 import { appRouter } from "../routers";
 
 describe("workspace chat-to-task flow", () => {
@@ -19,6 +20,7 @@ describe("workspace chat-to-task flow", () => {
     const task = await caller.workspace.createTask({ title: "heyy", description: "Captured from chat" });
     expect(message.message.id).toBe(41);
     expect(task.task).toMatchObject({ id: 42, status: "planning" });
+    expect(task.reply).toMatchObject({ employeeName: "Alex", isFallback: false, content: expect.stringContaining("assess") });
     expect(state).toEqual({ messages: 1, tasks: 1 });
   });
 });

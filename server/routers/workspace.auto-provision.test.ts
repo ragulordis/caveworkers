@@ -8,6 +8,7 @@ vi.mock("../db", () => ({
   updateTaskForUser: async () => { throw new Error("unused"); },
   appendMessageForUser: async () => { throw new Error("unused"); },
 }));
+vi.mock("../agents/employeeResponse", () => ({ respondToTaskForUser: async () => ({ employeeName: "Alex", content: "I’ll begin with a focused plan.", isFallback: false }) }));
 import { appRouter } from "../routers";
 
 describe("workspace mutation after automatic provisioning", () => {

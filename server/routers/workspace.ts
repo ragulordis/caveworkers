@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { appendMessageForUser, CompanyDocumentUploadInput, createCompanyWorkspace, createTaskForUser, getActivityEventDetailForUser, getCompanyDocumentDownloadForUser, uploadCompanyDocumentForUser, updateTaskForUser } from "../db";
 import { getWorkspaceOverviewForUser } from "../workspace/service";
+import { respondToTaskForUser } from "../agents/employeeResponse";
 import { protectedProcedure, router } from "../_core/trpc";
 
 const createCompanyInput = z.object({
@@ -27,7 +28,11 @@ export const workspaceRouter = router({
     const workspace = await createCompanyWorkspace(ctx.user.id, input);
     return { workspace, persistence: "saved" as const };
   }),
-  createTask: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), description: z.string().trim().max(6_000).optional() })).mutation(async ({ input, ctx }) => ({ task: await requireWorkspaceForMutation(() => createTaskForUser(ctx.user.id, input)) })),
+  createTask: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), description: z.string().trim().max(6_000).optional() })).mutation(async ({ input, ctx }) => {
+    const task = await requireWorkspaceForMutation(() => createTaskForUser(ctx.user.id, input));
+    const reply = await requireWorkspaceForMutation(() => respondToTaskForUser(ctx.user.id, task));
+    return { task, reply };
+  }),
   updateTaskStatus: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), status: taskStatus, progress: z.number().int().min(0).max(100).optional() })).mutation(async ({ input, ctx }) => ({ task: await requireWorkspaceForMutation(() => updateTaskForUser(ctx.user.id, input)) })),
   appendMessage: protectedProcedure.input(z.object({ content: z.string().trim().min(1).max(10_000), relatedTaskId: z.number().int().positive().optional() })).mutation(async ({ input, ctx }) => ({ message: await requireWorkspaceForMutation(() => appendMessageForUser(ctx.user.id, input)) })),
   uploadCompanyDocument: protectedProcedure.input(companyDocumentUpload).mutation(async ({ input, ctx }) => ({ document: await requireWorkspaceForMutation(() => uploadCompanyDocumentForUser(ctx.user.id, input as CompanyDocumentUploadInput)) })),

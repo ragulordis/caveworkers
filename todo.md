@@ -147,3 +147,10 @@
 - [x] Validate related task identifiers against the authenticated user's company before storing chat messages.
 - [x] Add a regression proving cross-tenant task IDs cannot be linked from workspace messages.
 - [x] Add coverage for the login entry and unauthenticated route-gate behavior.
+- [x] Restore server-side AI employee responses after user messages and persist replies in the shared company conversation.
+- [x] Surface reliable employee response, loading, and error states in the workspace chat experience.
+- [x] Add regression coverage for successful and failed employee response generation.
+- [x] Verify the repaired response flow and save a delivery checkpoint.
+- [x] Surface a clear warning when an employee fallback reply is persisted because the AI provider is unavailable or timed out.
+- [x] Add router-level regression coverage for the persisted employee response returned by task creation.
+- [x] Verify the employee reply flow end-to-end and save the final response-repair checkpoint.
