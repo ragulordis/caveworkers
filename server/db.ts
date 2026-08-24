@@ -1,6 +1,6 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { activityEvents, companies, companyContext, companyMembers, conversations, employees, InsertUser, messages, tasks, users } from "../drizzle/schema";
+import { activityEvents, companies, companyContext, companyMembers, conversations, employees, InsertUser, messages, securityToolPolicies, tasks, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -97,10 +97,29 @@ export async function createCompanyWorkspace(userId: number, input: CreateCompan
       toolPermissions: ["repository.read", "task.plan", "memory.read"],
     });
     const employeeId = Number((createdEmployee as unknown as { insertId: number }).insertId);
+    const createdSecurityEmployee = await tx.insert(employees).values({
+      companyId,
+      key: "cybersecurity-analyst",
+      name: "Maya",
+      role: "Cybersecurity Analyst",
+      status: "monitoring",
+      model: "openrouter-configured-model",
+      systemPromptKey: "cybersecurity-analyst-v1",
+      temperature: 10,
+      maxTokens: 1200,
+      toolPermissions: ["repository.read", "security.scan", "logs.read", "configuration.read"],
+    });
+    const securityEmployeeId = Number((createdSecurityEmployee as unknown as { insertId: number }).insertId);
+    await tx.insert(securityToolPolicies).values([
+      { employeeId: securityEmployeeId, toolName: "repository", canRead: true, canExecute: false, canWrite: false, requiresApproval: false },
+      { employeeId: securityEmployeeId, toolName: "dependency_scanner", canRead: true, canExecute: true, canWrite: false, requiresApproval: false },
+      { employeeId: securityEmployeeId, toolName: "http_api_tester", canRead: true, canExecute: true, canWrite: false, requiresApproval: true },
+      { employeeId: securityEmployeeId, toolName: "production", canRead: false, canExecute: false, canWrite: false, requiresApproval: true },
+    ]);
     const createdConversation = await tx.insert(conversations).values({ companyId, title: "Engineering", visibility: "company", createdByUserId: userId });
     const conversationId = Number((createdConversation as unknown as { insertId: number }).insertId);
 
-    return { companyId, employeeId, conversationId };
+    return { companyId, employeeId, securityEmployeeId, conversationId };
   });
 }
 
@@ -117,7 +136,7 @@ export async function getWorkspaceRecordsForUser(userId: number) {
   const company = await getPrimaryCompanyForUser(userId);
   if (!company) return undefined;
   const [employeeRows, conversationRows, taskRows, contextRows, eventRows] = await Promise.all([
-    db.select().from(employees).where(eq(employees.companyId, company.id)).limit(1),
+    db.select().from(employees).where(eq(employees.companyId, company.id)),
     db.select().from(conversations).where(eq(conversations.companyId, company.id)).orderBy(asc(conversations.createdAt)).limit(1),
     db.select().from(tasks).where(eq(tasks.companyId, company.id)).orderBy(desc(tasks.updatedAt)),
     db.select().from(companyContext).where(eq(companyContext.companyId, company.id)).orderBy(desc(companyContext.updatedAt)),
@@ -125,7 +144,7 @@ export async function getWorkspaceRecordsForUser(userId: number) {
   ]);
   const conversation = conversationRows[0];
   const conversationMessages = conversation ? await db.select().from(messages).where(eq(messages.conversationId, conversation.id)).orderBy(asc(messages.createdAt)) : [];
-  return { company, employee: employeeRows[0], conversation, tasks: taskRows, context: contextRows, events: eventRows, messages: conversationMessages };
+  return { company, employee: employeeRows.find((employee) => employee.key === "full-stack-developer") ?? employeeRows[0], employees: employeeRows, conversation, tasks: taskRows, context: contextRows, events: eventRows, messages: conversationMessages };
 }
 
 async function getAuthorizedCompany(dbUserId: number) {

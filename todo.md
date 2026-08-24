@@ -26,3 +26,23 @@
 - [x] Remove preview-state rendering in favor of the shared workspace overview read model for chat, tasks, and memory.
 - [x] Add procedure-level Vitest coverage for task creation, status updates, and message persistence boundaries.
 - [x] Save the final delivery checkpoint after the final verified build.
+- [x] Add a Cybersecurity Analyst employee configuration with a professional security persona, explicit model settings, and restricted tool permissions.
+- [x] Extend employee and company memory retrieval for security architecture, vulnerabilities, threat models, policies, incidents, compliance, and accepted risks.
+- [x] Add typed persistence models for security reviews, findings, remediation, risk scores, approvals, and security-specific audit events.
+- [x] Implement evidence-aware finding states, severity levels, remediation verification, and company authorization boundaries.
+- [x] Add structured security-review task templates with phases for attack-surface analysis, auth, authorization, validation, data handling, dependencies, remediation, and verification.
+- [x] Implement restricted security tool permissions and approval requirements for sensitive operations.
+- [x] Add Cybersecurity Analyst messages and employee-to-employee handoffs through the shared persistent conversation system.
+- [x] Add a security dashboard showing security status, findings, risk score, active review, remediation, recent events, and scan state from backend data.
+- [x] Integrate Cybersecurity Analyst identity, status, current work, risk level, and latest finding into the premium workspace navigation and employee panel.
+- [x] Add tests for security workflow validation, permission boundaries, findings, and developer handoff flows.
+- [x] Verify desktop and mobile security views, then save a delivery checkpoint.
+- [x] Add and use a concrete Cybersecurity Analyst persona definition rather than only a system-prompt key.
+- [x] Implement persistent remediation verification and finding-status transition procedures with verification summaries.
+- [x] Implement a real persisted Maya-to-Alex handoff/update exchange through the shared conversation and event system.
+- [x] Surface Maya’s security status, current review, risk level, and latest finding in the workspace employee panel.
+- [x] Add tests for finding persistence, remediation verification, and the real developer-handoff workflow.
+- [x] Save a post-security delivery checkpoint after final verification.
+- [x] Add a switchable workspace employee panel that shows Maya’s status, active review, risk level, and latest finding from security data.
+- [x] Add Vitest coverage for successful finding, remediation-verification, and Maya-to-Alex handoff persistence paths using repository mocks.
+- [x] Save the final post-security checkpoint after completing the remaining verification work.

@@ -13,7 +13,10 @@ export async function getWorkspaceOverviewForUser(userId?: number): Promise<Work
   return {
     company: { id: String(records.company.id), name: records.company.name, description: records.company.description ?? "", industry: records.company.industry ?? "", goals: records.company.goals ?? "" },
     employee: { id: String(records.employee.id), name: records.employee.name, role: records.employee.role, status: "working", model: records.employee.model, currentTaskId: records.tasks[0] ? `CW-${records.tasks[0].id}` : "", toolPermissions: records.employee.toolPermissions },
-    messages: records.messages.map((message) => ({ id: String(message.id), sender: message.senderType, content: message.content, createdAt: message.createdAt.getTime(), messageType: message.messageType })),
+    messages: records.messages.map((message) => {
+      const sender = message.senderEmployeeId ? records.employees.find((employee) => employee.id === message.senderEmployeeId) : undefined;
+      return { id: String(message.id), sender: message.senderType, content: message.content, createdAt: message.createdAt.getTime(), messageType: message.messageType, employeeName: sender?.name, employeeKey: sender?.key };
+    }),
     tasks: records.tasks.map((task) => ({ id: `CW-${task.id}`, title: task.title, state: taskStates[task.status], progress: task.progress, updatedAt: task.updatedAt.getTime(), detail: task.description ?? "No detail recorded yet.", tags: [task.status.replace("_", " ")] })),
     memory: [
       ...(records.company.industry ? [{ id: `company-industry-${records.company.id}`, category: "company context", title: "Industry", value: records.company.industry }] : []),

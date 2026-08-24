@@ -15,6 +15,13 @@
       "when": 1787566479293,
       "tag": "0001_even_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787568583811,
+      "tag": "0002_pretty_reaper",
+      "breakpoints": true
     }
   ]
 }
