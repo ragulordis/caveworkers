@@ -158,3 +158,7 @@
 - [x] Give every responding employee an explicit role, distinctive persona, and bounded skill set in server-generated replies.
 - [x] Surface the selected specialist and relevant skills in the chat/task experience.
 - [x] Add specialist-routing and persona-response regressions, then verify and save a delivery checkpoint.
+- [x] Add a manual employee picker next to the chat composer and pass the selected specialist through task creation.
+- [x] Persist employee-to-employee handoffs and dependent tasks when work requires multiple specialist skill sets.
+- [x] Surface assignment and handoff context in the shared conversation and task experience.
+- [x] Add regression coverage for explicit selection and cross-specialist handoffs, then verify and save a delivery checkpoint.

@@ -25,6 +25,7 @@ describe("employee response generation", () => {
     expect(routeTaskToSpecialists("Analyze our KPI trend from the CSV").map((specialist) => specialist.name)).toEqual(["Noor"]);
     expect(routeTaskToSpecialists("Can I talk to Noor?").map((specialist) => specialist.name)).toEqual(["Noor"]);
     expect(routeTaskToSpecialists("Create an end-to-end regression suite").map((specialist) => specialist.name)).toEqual(["Priya"]);
+    expect(routeTaskToSpecialists("Build a secure analytics dashboard").map((specialist) => specialist.name)).toEqual(["Alex", "Maya", "Noor"]);
     expect(routeTaskToSpecialists("Hello everyone, how many of you are here?").map((specialist) => specialist.name)).toEqual(["Alex", "Maya", "Noor", "Priya"]);
   });
 });

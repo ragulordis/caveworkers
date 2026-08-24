@@ -14,5 +14,6 @@ const teamRequest = /\b(everyone|everybody|all(?:\s+of)?\s+you|whole team|team)\
 export function routeTaskToSpecialists(title: string, description?: string | null) {
   const request = `${title}\n${description ?? ""}`;
   if (teamRequest.test(request)) return specialistProfiles;
-  return [specialistProfiles.find((specialist) => specialist.routing.test(request)) ?? specialistProfiles[0]];
+  const matchingSpecialists = specialistProfiles.filter((specialist) => specialist.routing.test(request));
+  return matchingSpecialists.length ? matchingSpecialists : [specialistProfiles[0]];
 }

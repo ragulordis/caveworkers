@@ -1,26 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../_core/context";
 
-const state = vi.hoisted(() => ({ messages: 0, tasks: 0 }));
+const state = vi.hoisted(() => ({ messages: 0, tasks: 0, responseInputs: [] as unknown[][] }));
 vi.mock("../db", () => ({
   createCompanyWorkspace: async () => ({ companyId: 7 }),
   appendMessageForUser: async () => { state.messages += 1; return { id: 41, createdAt: Date.now() }; },
   createTaskForUser: async (_userId: number, input: { title: string }) => { state.tasks += 1; return { id: 42, title: input.title, status: "planning" as const, progress: 0 }; },
   updateTaskForUser: async () => { throw new Error("unused"); },
 }));
-vi.mock("../agents/employeeResponse", () => ({ respondToTaskForUser: async () => ({ employeeName: "Alex", content: "I’ll assess the request and return next steps.", isFallback: false }) }));
+vi.mock("../agents/employeeResponse", () => ({ respondToTaskForUser: async (...args: unknown[]) => { state.responseInputs.push(args); return { employeeName: "Noor", content: "I’ll assess the request and return next steps.", isFallback: false, handoffs: [{ from: "Noor", to: "Maya", taskId: 73 }] }; } }));
 import { appRouter } from "../routers";
 
 describe("workspace chat-to-task flow", () => {
   it("persists the submitted chat message and creates its follow-on task without an invalid activity identifier", async () => {
-    state.messages = 0; state.tasks = 0;
+    state.messages = 0; state.tasks = 0; state.responseInputs = [];
     const ctx = { user: { id: 1, openId: "workspace-user", role: "user", name: "Workspace User", email: null, loginMethod: "google", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() }, req: {} as TrpcContext["req"], res: {} as TrpcContext["res"] } as TrpcContext;
     const caller = appRouter.createCaller(ctx);
     const message = await caller.workspace.appendMessage({ content: "heyy" });
-    const task = await caller.workspace.createTask({ title: "heyy", description: "Captured from chat" });
+    const task = await caller.workspace.createTask({ title: "heyy", description: "Captured from chat", assignedEmployeeKey: "data-analyst" });
     expect(message.message.id).toBe(41);
     expect(task.task).toMatchObject({ id: 42, status: "planning" });
-    expect(task.reply).toMatchObject({ employeeName: "Alex", isFallback: false, content: expect.stringContaining("assess") });
-    expect(state).toEqual({ messages: 1, tasks: 1 });
+    expect(task.reply).toMatchObject({ employeeName: "Noor", isFallback: false, content: expect.stringContaining("assess"), handoffs: [{ from: "Noor", to: "Maya", taskId: 73 }] });
+    expect(state.responseInputs[0]?.[2]).toBe("data-analyst");
+    expect(state).toMatchObject({ messages: 1, tasks: 1 });
   });
 });

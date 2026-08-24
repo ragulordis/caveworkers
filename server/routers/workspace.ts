@@ -15,6 +15,7 @@ const createCompanyInput = z.object({
 });
 
 const taskStatus = z.enum(["backlog", "planning", "in_progress", "waiting", "review", "completed", "blocked"]);
+const employeeKey = z.enum(["full-stack-developer", "cybersecurity-analyst", "data-analyst", "qa-automation-engineer"]);
 const companyDocumentUpload = z.object({ fileName: z.string().trim().min(1).max(255), contentType: z.string().trim().min(1).max(120), sizeBytes: z.number().int().positive().max(10 * 1024 * 1024), base64Data: z.string().min(4).max(14 * 1024 * 1024) });
 
 export async function requireWorkspaceForMutation<T>(operation: () => Promise<T>) {
@@ -28,9 +29,9 @@ export const workspaceRouter = router({
     const workspace = await createCompanyWorkspace(ctx.user.id, input);
     return { workspace, persistence: "saved" as const };
   }),
-  createTask: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), description: z.string().trim().max(6_000).optional() })).mutation(async ({ input, ctx }) => {
+  createTask: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), description: z.string().trim().max(6_000).optional(), assignedEmployeeKey: employeeKey.optional() })).mutation(async ({ input, ctx }) => {
     const task = await requireWorkspaceForMutation(() => createTaskForUser(ctx.user.id, input));
-    const reply = await requireWorkspaceForMutation(() => respondToTaskForUser(ctx.user.id, task));
+    const reply = await requireWorkspaceForMutation(() => respondToTaskForUser(ctx.user.id, task, input.assignedEmployeeKey));
     return { task, reply };
   }),
   updateTaskStatus: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), status: taskStatus, progress: z.number().int().min(0).max(100).optional() })).mutation(async ({ input, ctx }) => ({ task: await requireWorkspaceForMutation(() => updateTaskForUser(ctx.user.id, input)) })),

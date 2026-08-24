@@ -233,20 +233,20 @@ async function getAuthorizedCompany(dbUserId: number) {
   return ensurePrimaryCompanyForUser(dbUserId);
 }
 
-export async function createTaskWithDependencies(userId: number, input: { title: string; description?: string }, dependencies: { company: () => Promise<{ id: number }>; employee: (companyId: number) => Promise<{ id: number } | undefined>; insertTask: (value: { companyId: number; requestedByUserId: number; assignedEmployeeId?: number; title: string; description?: string }) => Promise<number>; insertActivity: (value: { companyId: number; employeeId?: number; taskId: number; action: string; summary: string; status: "started" }) => Promise<void> }) {
+export async function createTaskWithDependencies(userId: number, input: { title: string; description?: string; assignedEmployeeKey?: string }, dependencies: { company: () => Promise<{ id: number }>; employee: (companyId: number, employeeKey?: string) => Promise<{ id: number } | undefined>; insertTask: (value: { companyId: number; requestedByUserId: number; assignedEmployeeId?: number; title: string; description?: string }) => Promise<number>; insertActivity: (value: { companyId: number; employeeId?: number; taskId: number; action: string; summary: string; status: "started" }) => Promise<void> }) {
   const company = await dependencies.company();
-  const employee = await dependencies.employee(company.id);
+  const employee = await dependencies.employee(company.id, input.assignedEmployeeKey);
   const taskId = await dependencies.insertTask({ companyId: company.id, requestedByUserId: userId, assignedEmployeeId: employee?.id, title: input.title, description: input.description });
   await dependencies.insertActivity({ companyId: company.id, employeeId: employee?.id, taskId, action: "task_created", summary: `Captured a new task: ${input.title}`, status: "started" });
   return { id: taskId, title: input.title, description: input.description, status: "planning" as const, progress: 0 };
 }
 
-export async function createTaskForUser(userId: number, input: { title: string; description?: string }) {
+export async function createTaskForUser(userId: number, input: { title: string; description?: string; assignedEmployeeKey?: "full-stack-developer" | "cybersecurity-analyst" | "data-analyst" | "qa-automation-engineer" }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   return createTaskWithDependencies(userId, input, {
     company: () => getAuthorizedCompany(userId),
-    employee: async (companyId) => (await db.select().from(employees).where(eq(employees.companyId, companyId)).limit(1))[0],
+    employee: async (companyId, employeeKey) => (await db.select().from(employees).where(and(eq(employees.companyId, companyId), eq(employees.key, employeeKey ?? "full-stack-developer"))).limit(1))[0],
     insertTask: async (value) => {
       const result = await db.insert(tasks).values({ ...value, status: "planning", progress: 0 });
       const taskId = await resolveCreatedTaskId(result, async () => (await db.select().from(tasks).where(and(eq(tasks.companyId, value.companyId), eq(tasks.requestedByUserId, value.requestedByUserId), eq(tasks.title, value.title))).orderBy(desc(tasks.id)).limit(1))[0]);

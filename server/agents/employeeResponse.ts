@@ -1,8 +1,8 @@
 import { asc, desc, eq, and } from "drizzle-orm";
-import { activityEvents, conversations, employees, messages, tasks } from "../../drizzle/schema";
-import { ensurePrimaryCompanyForUser, getDb } from "../db";
+import { activityEvents, conversations, employees, messages, taskDependencies, tasks } from "../../drizzle/schema";
+import { ensurePrimaryCompanyForUser, getCreatedRecordId, getDb } from "../db";
 import { getConfiguredProvider, resolveEmployeeModel, type EmployeeModelConfig, type LlmMessage, type LlmProvider } from "./llmProvider";
-import { routeTaskToSpecialists, type SpecialistProfile } from "./specialists";
+import { routeTaskToSpecialists, specialistProfiles, type SpecialistProfile } from "./specialists";
 
 type ReplyInput = { specialist: SpecialistProfile; companyName: string; taskTitle: string; taskDescription?: string; history: LlmMessage[] };
 type ReplyResult = { employeeName: string; employeeKey: string; employeeRole: string; skills: string[]; content: string; isFallback: boolean; model?: string };
@@ -27,7 +27,7 @@ export async function generateEmployeeReply(input: ReplyInput, dependencies: { p
 }
 
 /** Routes a company task to the specialist best suited to answer it and persists every selected reply. */
-export async function respondToTaskForUser(userId: number, task: { id: number; title: string; description?: string | null }) {
+export async function respondToTaskForUser(userId: number, task: { id: number; title: string; description?: string | null }, selectedEmployeeKey?: SpecialistProfile["key"]) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const company = await ensurePrimaryCompanyForUser(userId);
@@ -38,15 +38,33 @@ export async function respondToTaskForUser(userId: number, task: { id: number; t
   if (!conversation) throw new Error("The company conversation is unavailable");
   const recent = await db.select().from(messages).where(eq(messages.conversationId, conversation.id)).orderBy(desc(messages.createdAt)).limit(8);
   const history: LlmMessage[] = recent.reverse().filter((message) => message.senderType !== "system").map((message) => ({ role: message.senderType === "employee" ? "assistant" : "user", content: message.content }));
-  const selected = routeTaskToSpecialists(task.title, task.description);
+  const automaticallyRouted = routeTaskToSpecialists(task.title, task.description);
+  const manuallySelected = selectedEmployeeKey ? specialistProfiles.find((specialist) => specialist.key === selectedEmployeeKey) : undefined;
+  const selected = manuallySelected ? [manuallySelected, ...automaticallyRouted.filter((specialist) => specialist.key !== manuallySelected.key)] : automaticallyRouted;
   const assigned = selected.map((specialist) => ({ specialist, employee: companyEmployees.find((employee) => employee.key === specialist.key) })).filter((item): item is { specialist: SpecialistProfile; employee: typeof companyEmployees[number] } => Boolean(item.employee));
   if (!assigned.length) throw new Error("No routed employee is available in this company workspace");
   const replies = await Promise.all(assigned.map(({ specialist, employee }) => generateEmployeeReply({ specialist, companyName: company.name, taskTitle: task.title, taskDescription: task.description ?? undefined, history }, { provider: getConfiguredProvider, config: { provider: "openrouter", model: resolveEmployeeModel(employee.model), temperature: Math.min(1, Math.max(0, employee.temperature / 100)), maxTokens: employee.maxTokens, contextLimit: 16_000, systemPromptKey: employee.systemPromptKey, toolPermissions: employee.toolPermissions } })));
   const primary = assigned[0];
+  const handoffs: Array<{ from: string; to: string; taskId: number }> = [];
   await db.transaction(async (tx) => {
-    await tx.insert(messages).values(replies.map((reply) => ({ conversationId: conversation.id, senderType: "employee" as const, senderEmployeeId: assigned.find((item) => item.specialist.key === reply.employeeKey)!.employee.id, content: reply.content, messageType: "task_update" as const, relatedTaskId: task.id, createdBy: `employee:${reply.employeeKey}` })));
+    const relatedTaskIds = [task.id];
+    for (const secondary of assigned.slice(1)) {
+      const handoffTitle = `Handoff: ${task.title}`;
+      const created = await tx.insert(tasks).values({ companyId: company.id, assignedEmployeeId: secondary.employee.id, requestedByUserId: userId, title: handoffTitle, description: `Requested by ${primary.employee.name} because this work needs ${secondary.specialist.skills.slice(0, 2).join(" and ")}. Original task: ${task.title}`, status: "planning", progress: 0 });
+      const handoffTaskId = getCreatedRecordId(created) ?? (await tx.select().from(tasks).where(and(eq(tasks.companyId, company.id), eq(tasks.assignedEmployeeId, secondary.employee.id), eq(tasks.title, handoffTitle))).orderBy(desc(tasks.id)).limit(1))[0]?.id;
+      if (!handoffTaskId) throw new Error("Unable to create the specialist handoff task");
+      relatedTaskIds.push(handoffTaskId);
+      handoffs.push({ from: primary.specialist.name, to: secondary.specialist.name, taskId: handoffTaskId });
+      await tx.insert(taskDependencies).values({ parentTaskId: task.id, childTaskId: handoffTaskId, dependencyType: "handoff" });
+    }
+    await tx.insert(messages).values(replies.flatMap((reply, index) => {
+      const assignee = assigned.find((item) => item.specialist.key === reply.employeeKey)!;
+      const relatedTaskId = relatedTaskIds[index] ?? task.id;
+      const handoffMessage = index ? [{ conversationId: conversation.id, senderType: "employee" as const, senderEmployeeId: primary.employee.id, content: `${primary.specialist.name} handed this task to ${assignee.specialist.name} for ${assignee.specialist.skills.slice(0, 2).join(" and ")}.`, messageType: "handoff" as const, relatedTaskId, createdBy: `employee:${primary.specialist.key}` }] : [];
+      return [...handoffMessage, { conversationId: conversation.id, senderType: "employee" as const, senderEmployeeId: assignee.employee.id, content: reply.content, messageType: "task_update" as const, relatedTaskId, createdBy: `employee:${reply.employeeKey}` }];
+    }));
     await tx.update(tasks).set({ assignedEmployeeId: primary.employee.id, status: "in_progress", progress: 10 }).where(and(eq(tasks.id, task.id), eq(tasks.companyId, company.id)));
-    await tx.insert(activityEvents).values(replies.map((reply) => ({ companyId: company.id, employeeId: assigned.find((item) => item.specialist.key === reply.employeeKey)!.employee.id, taskId: task.id, action: reply.isFallback ? "employee_response_degraded" : "employee_responded", summary: reply.isFallback ? `${reply.employeeName} saved the task but could not reach the AI provider.` : `${reply.employeeName} responded to: ${task.title}`, status: reply.isFallback ? "failed" as const : "completed" as const })));
+    await tx.insert(activityEvents).values([...replies.map((reply, index) => ({ companyId: company.id, employeeId: assigned.find((item) => item.specialist.key === reply.employeeKey)!.employee.id, taskId: relatedTaskIds[index] ?? task.id, action: reply.isFallback ? "employee_response_degraded" : "employee_responded", summary: reply.isFallback ? `${reply.employeeName} saved the task but could not reach the AI provider.` : `${reply.employeeName} responded to: ${task.title}`, status: reply.isFallback ? "failed" as const : "completed" as const })), ...handoffs.map((handoff) => ({ companyId: company.id, employeeId: primary.employee.id, taskId: handoff.taskId, action: "employee_handoff", summary: `${handoff.from} handed off work to ${handoff.to}.`, status: "completed" as const }))]);
   });
-  return { ...replies[0], replies };
+  return { ...replies[0], replies, handoffs };
 }
